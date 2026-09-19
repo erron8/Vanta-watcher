@@ -26,3 +26,8 @@ export const walletMetrics = sqliteTable(
   },
   (table) => [uniqueIndex("idx_wallet_metrics_scan_address").on(table.scanId, table.address)],
 );
+
+export const bookmarks = sqliteTable("bookmarks", {
+  address: text("address").primaryKey(),
+  createdAt: text("created_at").notNull(),
+});
