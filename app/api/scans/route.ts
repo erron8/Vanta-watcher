@@ -7,6 +7,7 @@ type Metric = {
   pnl30d: number | null;
   activeDays: number | null;
   maxLoss: number | null;
+  maxProfit: number | null;
   monthlyProfit: number | null;
   calendar: unknown[];
   error?: string | null;
@@ -25,7 +26,7 @@ export async function GET() {
       .first<Record<string, unknown>>();
     if (!scan) return Response.json({ scan: null, rows: [] });
     const result = await db
-      .prepare("SELECT address, activities, avg_invested AS avgInvested, pnl_30d AS pnl30d, active_days AS activeDays, max_loss AS maxLoss, monthly_profit AS monthlyProfit, calendar_json AS calendarJson, error FROM wallet_metrics WHERE scan_id = ?")
+      .prepare("SELECT address, activities, avg_invested AS avgInvested, pnl_30d AS pnl30d, active_days AS activeDays, max_loss AS maxLoss, max_profit AS maxProfit, monthly_profit AS monthlyProfit, calendar_json AS calendarJson, error FROM wallet_metrics WHERE scan_id = ?")
       .bind(scan.id)
       .all<Record<string, unknown>>();
     return Response.json({
@@ -52,8 +53,8 @@ export async function POST(request: Request) {
     const statements = [
       db.prepare("INSERT INTO scans (id, source_name, month, wallet_count, created_at) VALUES (?, ?, ?, ?, ?)").bind(id, body.sourceName.slice(0, 240), body.month, body.rows.length, createdAt),
       ...body.rows.map((row) =>
-        db.prepare("INSERT INTO wallet_metrics (scan_id, address, activities, avg_invested, pnl_30d, active_days, max_loss, monthly_profit, calendar_json, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .bind(id, row.address, row.activities, row.avgInvested, row.pnl30d, row.activeDays, row.maxLoss, row.monthlyProfit, JSON.stringify(row.calendar), row.error || null),
+        db.prepare("INSERT INTO wallet_metrics (scan_id, address, activities, avg_invested, pnl_30d, active_days, max_loss, max_profit, monthly_profit, calendar_json, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .bind(id, row.address, row.activities, row.avgInvested, row.pnl30d, row.activeDays, row.maxLoss, row.maxProfit, row.monthlyProfit, JSON.stringify(row.calendar), row.error || null),
       ),
     ];
     await db.batch(statements);

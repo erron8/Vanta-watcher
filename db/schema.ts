@@ -19,6 +19,7 @@ export const walletMetrics = sqliteTable(
     pnl30d: real("pnl_30d"),
     activeDays: integer("active_days"),
     maxLoss: real("max_loss"),
+    maxProfit: real("max_profit"),
     monthlyProfit: real("monthly_profit"),
     calendarJson: text("calendar_json").notNull(),
     error: text("error"),

@@ -1,0 +1,1 @@
+ALTER TABLE `wallet_metrics` ADD `max_profit` real;
