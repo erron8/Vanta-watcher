@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Navigation, WalletAddress, money, number, tone, monthName, type Row, type Day } from "./screener-ui";
 import { DayPositions, WalletFinder } from "./position-history";
 import { reserveRequest } from "@/lib/history";
+import { LabelControls } from './wallet-labels';
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
@@ -180,6 +181,7 @@ export default function Home() {
     <div className="section-tabs"><span className="tab-current">Overview</span><span className="muted">USD</span><span className="status-text" role="status">{status}</span></div>
     {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
+      <LabelControls addresses={shown.map(r => r.address)} disabled={busy} />
       <div className="overview-label"><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
       <section className="metrics-strip" aria-label="Selected wallet metrics">
         <div className="metric-card"><span>Monthly P&L</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong><small>Calendar month · USD</small></div>

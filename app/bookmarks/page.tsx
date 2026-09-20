@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Navigation, WalletAddress } from "../screener-ui";
+import { LabelControls } from '../wallet-labels';
 
 export default function Bookmarks() {
   const [rows, setRows] = useState<{ address: string; createdAt: string }[]>([]);
@@ -23,6 +24,7 @@ export default function Bookmarks() {
   return <main className="terminal"><Navigation active="bookmarks" /><div className="bookmarks-content">
     <div className="bookmarks-heading"><h1>Bookmarked wallets</h1><span className="count-badge">{rows.length}</span></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
+    <LabelControls addresses={rows.map(r => r.address)} />
     <div className="bookmark-list">{rows.map(row => <div className="bookmark-item" key={row.address}>
       <WalletAddress address={row.address} marked pending={pending === row.address} onBookmark={() => remove(row.address)} onError={setError} />
       <time dateTime={row.createdAt}>Saved {new Date(row.createdAt).toLocaleDateString()}</time>

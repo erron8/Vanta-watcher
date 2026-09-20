@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WalletLabelsProvider } from './wallet-labels';
 
 export const metadata: Metadata = {
   title: "Meteora Wallet Screener",
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><WalletLabelsProvider>{children}</WalletLabelsProvider></body>
     </html>
   );
 }

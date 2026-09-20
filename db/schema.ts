@@ -31,3 +31,8 @@ export const bookmarks = sqliteTable("bookmarks", {
   address: text("address").primaryKey(),
   createdAt: text("created_at").notNull(),
 });
+
+export const walletProfiles = sqliteTable("wallet_profiles", {
+  address: text("address").primaryKey(),
+  profileJson: text("profile_json").notNull(),
+});

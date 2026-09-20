@@ -1,5 +1,5 @@
-export type Pool = { poolAddress: string; tokenX: string; tokenY: string; binStep: string; baseFee: string; lastClosedAt?: number };
-export type Position = { positionAddress: string; createdAt: number; closedAt: number; pnlUsd: string; pnlPctChange: string; allTimeDeposits: { total: { usd: string } }; allTimeWithdrawals: { total: { usd: string } }; allTimeFees: { total: { usd: string } } };
+export type Pool = { poolAddress: string; tokenX: string; tokenY: string; tokenXMint?: string; tokenYMint?: string; binStep: string; baseFee: string; lastClosedAt?: number };
+export type Position = { positionAddress: string; createdAt: number; closedAt: number; lowerBinId?: number; upperBinId?: number; pnlUsd: string; pnlPctChange: string; allTimeDeposits: { total: { usd: string }; tokenX?: { amount: string }; tokenY?: { amount: string } }; allTimeWithdrawals: { total: { usd: string } }; allTimeFees: { total: { usd: string } } };
 export type Match = Position & { wallet: string; pool: Pool };
 type Page = { pools?: Pool[]; positions?: Position[]; hasNext: boolean };
 const cache = new Map<string, { at: number; value: Page }>();

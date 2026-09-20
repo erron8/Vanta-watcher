@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Copy, Star, Check, Layers3 } from "lucide-react";
 import { useState } from "react";
+import { WalletPills } from './wallet-labels';
 
 export type Day = { date_time: string; pnl_usd: string; deposit_usd?: string; withdrawn_usd?: string; fees_earned_usd?: string; closed_position_count?: number; win_rate_usd?: string };
 export type Row = { address: string; activities: number; avgInvested: number | null; pnl30d: number | null; activeDays: number | null; maxLoss: number | null; monthlyProfit: number | null; calendar: Day[]; error?: string };
@@ -18,7 +19,7 @@ export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
 export function WalletAddress({ address, marked, pending, onBookmark, onError }: { address: string; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void }) {
   const [copied, setCopied] = useState(false);
   async function copy() { try { await navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { onError("Could not copy. Select the full address and copy it manually."); } }
-  return <div className="wallet-address" onClick={e => e.stopPropagation()}><a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button></div>;
+  return <div className="wallet-address" onClick={e => e.stopPropagation()}><a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button><WalletPills address={address} /></div>;
 }
 
 export function Calendar({ row, month, compact = false, onDateClick }: { row: Row | null; month: string; compact?: boolean; onDateClick?: (date: string) => void }) {
