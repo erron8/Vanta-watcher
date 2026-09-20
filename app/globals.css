@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
+/* On-demand position history and wallet matching. */
+.history-panel{background:#18191c;border:1px solid #26272b;border-radius:8px;margin:12px 0;overflow:hidden;padding:16px}
+.history-panel .panel-heading{padding:0 0 10px}.history-panel .panel-note{padding:0;margin:6px 0 14px;overflow-wrap:anywhere;max-width:none}
+.history-status{padding:10px 0;color:#a7a8b1;font-size:13px}.finder-fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.finder-fields label{font-size:12px;color:#a7a8b1;display:grid;gap:7px}.tolerance-options{margin:14px 0;color:#a7a8b1;font-size:12px}.tolerance-options summary{cursor:pointer;margin-bottom:10px}
+.finder-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0}.finder-actions>span{font-size:12px;color:#a7a8b1}
+.position-table th{padding:12px;text-align:left}.position-table td{vertical-align:top}.history-wallet{display:block;max-width:390px;overflow-wrap:anywhere;white-space:normal;color:#eeeef0;font-size:12px}.history-wallet:hover{text-decoration:underline;color:#fa5007}
+.position-table details{font-size:11px;color:#a7a8b1;white-space:normal;margin-top:8px}.position-table summary{cursor:pointer}.position-details{display:grid;gap:6px;margin-top:8px;max-width:390px;overflow-wrap:anywhere}
+.calendar-day.clickable-day{cursor:pointer}.calendar-day.clickable-day:hover{box-shadow:inset 0 0 0 1px #fa5007}.calendar-day.clickable-day:focus-visible{outline:2px solid #fa5007;outline-offset:-2px}.calendar-day:disabled{cursor:default}
+@media(max-width:800px){.finder-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.history-panel .panel-heading{gap:10px;flex-wrap:wrap}.history-wallet{max-width:260px}.history-panel{padding:12px}}
 
 :root{color-scheme:dark;--background:#0b0c0e;--foreground:#ededf0;--card:#18191c;--card-foreground:#ededf0;--popover:#18191c;--popover-foreground:#ededf0;--primary:#fa5007;--primary-foreground:#fff7f2;--secondary:#232428;--secondary-foreground:#ededf0;--muted:#202125;--muted-foreground:#9a9ba4;--accent:#28292e;--accent-foreground:#ededf0;--destructive:#ff4258;--border:#292a2f;--input:#35363c;--ring:#ff621e;--radius:.35rem;--positive:#00c995;--negative:#ff4058}
 @theme inline{

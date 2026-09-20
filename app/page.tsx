@@ -5,6 +5,8 @@ import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadshee
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Navigation, WalletAddress, money, number, tone, monthName, type Row, type Day } from "./screener-ui";
+import { DayPositions, WalletFinder } from "./position-history";
+import { reserveRequest } from "@/lib/history";
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
@@ -37,6 +39,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(true);
   const [selected, setSelected] = useState("");
+  const [historyDay, setHistoryDay] = useState<{ wallet: string; date: string } | null>(null);
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [bookmarkPending, setBookmarkPending] = useState<Set<string>>(new Set());
@@ -112,14 +115,10 @@ export default function Home() {
   async function scan() {
     if (!wallets.length || scanLock.current || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
     scanLock.current = true; setBusy(true); setProblem(""); setHover(null);
-    const queue = [...wallets], output: Row[] = []; let starts: number[] = [], done = 0;
+    const queue = [...wallets], output: Row[] = []; let done = 0;
     async function get(url: string) {
       for (let attempt = 0; attempt < 3; attempt++) {
-        while (true) {
-          const now = Date.now(); starts = starts.filter(t => now - t < 1000);
-          if (starts.length < 24) { starts.push(now); break; }
-          await new Promise(r => setTimeout(r, 40));
-        }
+        await reserveRequest();
         const response = await fetch(url, { signal: AbortSignal.timeout(25000) });
         if ((response.status === 429 || response.status >= 500) && attempt < 2) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
         if (!response.ok) throw new Error("Meteora returned " + response.status);
@@ -192,7 +191,9 @@ export default function Home() {
       <section className="overview-grid"><div className="performance-panel"><div className="panel-heading"><h2>Performance</h2><Wallet size={17} /></div>
         <dl><div><dt>30-day P&L</dt><dd className={tone(focus?.pnl30d)}>{money(focus?.pnl30d)}</dd></div><div><dt>CSV activities</dt><dd>{focus?.activities ?? "—"}</dd></div><div><dt>Monthly deposits</dt><dd>{focus ? money(deposits) : "—"}</dd></div><div><dt>Monthly withdrawals</dt><dd>{focus ? money(withdrawn) : "—"}</dd></div><div><dt>Best day</dt><dd className={tone(values.length ? Math.max(...values) : null)}>{values.length ? money(Math.max(...values)) : "—"}</dd></div><div><dt>Worst day</dt><dd className={tone(values.length ? Math.min(...values) : null)}>{values.length ? money(Math.min(...values)) : "—"}</dd></div></dl>
         <div className="profit-summary"><span>Monthly profit</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
-      </div><Calendar row={focus} month={month} /></section>
+      </div><Calendar row={focus} month={month} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} /></section>
+      {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} close={() => setHistoryDay(null)} />}
+      <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} />
       <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span></h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
         <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label, unit]) => <label key={key}>{label}<div className="filter-input"><Input type="number" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{unit}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
         <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseMove={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>

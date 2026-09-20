@@ -21,7 +21,7 @@ export function WalletAddress({ address, marked, pending, onBookmark, onError }:
   return <div className="wallet-address" onClick={e => e.stopPropagation()}><a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button></div>;
 }
 
-export function Calendar({ row, month, compact = false }: { row: Row | null; month: string; compact?: boolean }) {
+export function Calendar({ row, month, compact = false, onDateClick }: { row: Row | null; month: string; compact?: boolean; onDateClick?: (date: string) => void }) {
   const start = new Date(month + "-01T12:00:00Z");
   const length = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
   const offset = start.getUTCDay();
@@ -32,6 +32,7 @@ export function Calendar({ row, month, compact = false }: { row: Row | null; mon
     const date = `${month}-${String(day).padStart(2, "0")}`;
     const record = inMonth && date <= today ? map.get(day) : undefined;
     const pnl = record ? number(record.pnl_usd) : null;
-    return <div key={i} className={`calendar-day ${inMonth ? "" : "outside"} ${tone(pnl)} ${date === today ? "today" : ""}`} title={inMonth ? `${date}: ${money(pnl)}` : undefined}>{inMonth && <><span className="day-number">{day}</span><strong>{pnl === null ? "" : (pnl > 0 ? "+" : "") + money(pnl, true)}</strong>{record && !compact && <small>{record.closed_position_count !== undefined ? `${record.closed_position_count} closed` : ""}{number(record.win_rate_usd) !== null ? ` · ${Number(record.win_rate_usd).toFixed(0)}% wins` : ""}</small>}</>}</div>;
+    const clickable = !!row && inMonth && date <= today && !compact && !!onDateClick;
+    return <button type="button" key={i} disabled={!clickable} onClick={() => onDateClick?.(date)} aria-label={clickable ? `View positions closed on ${date}` : undefined} className={`calendar-day ${clickable ? "clickable-day" : ""} ${inMonth ? "" : "outside"} ${tone(pnl)} ${date === today ? "today" : ""}`} title={inMonth ? `${date}: ${money(pnl)}${clickable ? ' · Click to load positions' : ''}` : undefined}>{inMonth && <><span className="day-number">{day}</span><strong>{pnl === null ? "" : (pnl > 0 ? "+" : "") + money(pnl, true)}</strong>{record && !compact && <small>{record.closed_position_count !== undefined ? `${record.closed_position_count} closed` : ""}{number(record.win_rate_usd) !== null ? ` · ${Number(record.win_rate_usd).toFixed(0)}% wins` : ""}</small>}</>}</button>;
   })}</div>{!row && <p className="calendar-empty">Select a wallet after loading your scan.</p>}</section>;
 }
