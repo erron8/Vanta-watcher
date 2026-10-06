@@ -22,7 +22,6 @@ export default function LandingPage() {
     <header className="landing-header">
       <div className="landing-container landing-header-inner">
         <a className="landing-brand" href="/" aria-label="Supir home"><span className="landing-brand-mark"><Layers3 size={23} strokeWidth={2.6} /></span><span>supir</span></a>
-        <nav className="landing-nav" aria-label="Main navigation"><a href="#features">Features</a><a href="/screener">Wallet screener</a><a href="/bookmarks">Bookmarks</a></nav>
         <a className="landing-header-cta" href="/screener">Open screener <ArrowUpRight size={19} /></a>
       </div>
     </header>
