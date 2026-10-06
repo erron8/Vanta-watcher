@@ -98,7 +98,9 @@ export default function Home() {
   });
   }, [rows, filters, sort, direction, currency, scanMonth]);
 
-  const focus = rows.find(r => r.address === selected) || shown[0] || null;
+  // Keep the initial wallet stable when currency or filters reorder the table.
+  const defaultFocus = useMemo(() => rows.filter(row => !row.error).reduce<Row | null>((best, row) => !best || (row.monthlyProfit ?? -Infinity) > (best.monthlyProfit ?? -Infinity) ? row : best, null), [rows]);
+  const focus = rows.find(r => r.address === selected) || defaultFocus;
   const focusAddress = focus?.address || "";
   const cacheKey = `${focusAddress}:${month}`;
   useEffect(() => {
