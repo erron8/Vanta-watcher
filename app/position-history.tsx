@@ -3,14 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { history, matches, duration, type Match } from '@/lib/history';
-import { money, number, tone } from './screener-ui';
+import { amount, number, tone, type Currency } from './screener-ui';
 import { WalletPills } from './wallet-labels';
 
-function Positions({ positions }: { positions: Match[] }) {
-  return <div className="wallet-table-scroll"><table className="wallet-table position-table"><thead><tr><th>Wallet / position</th><th>Pool</th><th>Deposited</th><th>P&L</th><th>Return</th><th>Held</th><th>Closed (UTC)</th></tr></thead><tbody>{positions.map(p => <tr key={p.wallet + p.positionAddress}><td><a className="history-wallet" href={`https://fabriq.trade/portfolio-beta?walletAddress=${p.wallet}`} target="_blank" rel="noreferrer">{p.wallet}</a><WalletPills address={p.wallet} /><details><summary>Position details</summary><div className="position-details"><span>{p.positionAddress}</span><span>Opened: {new Date(p.createdAt * 1000).toISOString().replace('T', ' ').slice(0, 19)} UTC</span><span>Withdrawn: {money(number(p.allTimeWithdrawals?.total?.usd))}</span><span>Fees: {money(number(p.allTimeFees?.total?.usd))}</span><span>Pool: {p.pool.poolAddress}</span><span>Bin step {p.pool.binStep} · Base fee {p.pool.baseFee}%</span></div></details></td><td>{p.pool.tokenX}–{p.pool.tokenY}</td><td>{money(number(p.allTimeDeposits?.total?.usd))}</td><td className={tone(number(p.pnlUsd))}>{money(number(p.pnlUsd))}</td><td className={tone(number(p.pnlPctChange))}>{number(p.pnlPctChange)?.toFixed(2) ?? '—'}%</td><td>{duration(p.closedAt - p.createdAt)}</td><td>{new Date(p.closedAt * 1000).toISOString().replace('T', ' ').slice(0, 19)}</td></tr>)}</tbody></table></div>;
+function Positions({ positions, currency = "USD" }: { positions: Match[]; currency?: Currency }) {
+  return <div className="wallet-table-scroll"><table className="wallet-table position-table"><thead><tr><th>Wallet / position</th><th>Pool</th><th>Deposited ({currency})</th><th>P&L ({currency})</th><th>Return ({currency})</th><th>Held</th><th>Closed (UTC)</th></tr></thead><tbody>{positions.map(p => {
+    const pnl = number(currency === "USD" ? p.pnlUsd : p.pnlSol);
+    const pct = number(currency === "USD" ? p.pnlPctChange : p.pnlSolPctChange);
+    return <tr key={p.wallet + p.positionAddress}><td><a className="history-wallet" href={`https://fabriq.trade/portfolio-beta?walletAddress=${p.wallet}`} target="_blank" rel="noreferrer">{p.wallet}</a><WalletPills address={p.wallet} /><details><summary>Position details</summary><div className="position-details"><span>{p.positionAddress}</span><span>Opened: {new Date(p.createdAt * 1000).toISOString().replace('T', ' ').slice(0, 19)} UTC</span><span>Withdrawn: {amount(number(currency === "USD" ? p.allTimeWithdrawals?.total?.usd : p.allTimeWithdrawals?.total?.sol), currency)}</span><span>Fees: {amount(number(currency === "USD" ? p.allTimeFees?.total?.usd : p.allTimeFees?.total?.sol), currency)}</span><span>Pool: {p.pool.poolAddress}</span><span>Bin step {p.pool.binStep} · Base fee {p.pool.baseFee}%</span></div></details></td><td>{p.pool.tokenX}–{p.pool.tokenY}</td><td>{amount(number(currency === "USD" ? p.allTimeDeposits?.total?.usd : p.allTimeDeposits?.total?.sol), currency)}</td><td className={tone(pnl)}>{amount(pnl, currency)}</td><td className={tone(pct)}>{pct?.toFixed(2) ?? '—'}%</td><td>{duration(p.closedAt - p.createdAt)}</td><td>{new Date(p.closedAt * 1000).toISOString().replace('T', ' ').slice(0, 19)}</td></tr>;
+  })}</tbody></table></div>;
 }
 
-export function DayPositions({ wallet, date, close }: { wallet: string; date: string; close: () => void }) {
+export function DayPositions({ wallet, date, currency, close }: { wallet: string; date: string; currency: Currency; close: () => void }) {
   const [positions, setPositions] = useState<Match[]>([]), [status, setStatus] = useState('Loading history…'), [error, setError] = useState(''), [busy, setBusy] = useState(true), [retry, setRetry] = useState(0);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -22,7 +26,7 @@ export function DayPositions({ wallet, date, close }: { wallet: string; date: st
       .finally(() => { if (!controller.signal.aborted) { setPositions(found.sort((a, b) => b.closedAt - a.closedAt)); setBusy(false); } });
     return () => controller.abort();
   }, [wallet, date, retry]);
-  return <section className="history-panel"><div className="panel-heading"><h2>Closed positions · {date} <span className="currency-tag">UTC</span></h2><Button variant="outline" onClick={close}>{busy ? 'Cancel & close' : 'Close'}</Button></div><p className="panel-note">{wallet} · Positions are grouped by their closing date. Calendar totals may include other activity.</p><p className="history-status" role="status">{status}</p>{error && <div className="error-banner" role="alert">{error}<button onClick={() => { setBusy(true); setError(''); setPositions([]); setRetry(n => n + 1); }}>Retry</button></div>}{positions.length > 0 && <Positions positions={positions} />}{!busy && !error && !positions.length && <p className="panel-note">No closed DLMM positions found for this UTC date.</p>}</section>;
+  return <section className="history-panel"><div className="panel-heading"><h2>Closed positions · {date} <span className="currency-tag">UTC</span></h2><Button variant="outline" onClick={close}>{busy ? 'Cancel & close' : 'Close'}</Button></div><p className="panel-note">{wallet} · Positions are grouped by their closing date. Calendar totals may include other activity.</p><p className="history-status" role="status">{status}</p>{error && <div className="error-banner" role="alert">{error}<button onClick={() => { setBusy(true); setError(''); setPositions([]); setRetry(n => n + 1); }}>Retry</button></div>}{positions.length > 0 && <Positions positions={positions} currency={currency} />}{!busy && !error && !positions.length && <p className="panel-note">No closed DLMM positions found for this UTC date.</p>}</section>;
 }
 
 export function WalletFinder({ wallets, disabled }: { wallets: string[]; disabled: boolean }) {

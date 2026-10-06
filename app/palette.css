@@ -78,6 +78,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .network-label span { color: #a58e75; }
 .source-label > svg { color: #5e503f; }
 .import-bar, .section-tabs { border-color: #cdbba7; }
+.currency-switch { background: #e5d5c3; border-color: #c6ac8f; }
+.currency-switch button { color: #5e503f; }
+.currency-switch button:hover { color: #22333b; }
+.currency-switch button.active { background: #22333b; color: #f5eee6; }
 .count-badge, .currency-tag { background: #e5d5c3; color: #5e503f; border-color: #cdbba7; }
 .month-control { background: #f5eee6; border-color: #cdbba7; }
 .month-control input { color: #22333b; }

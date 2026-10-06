@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadsheet, Loader2, RotateCcw, SlidersHorizontal, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Navigation, WalletAddress, money, number, tone, monthName, type Row, type Day } from "../screener-ui";
+import { Calendar, Navigation, WalletAddress, amount, dayPnl, largestLoss, monthPnl, number, tone, monthName, type Currency, type Row, type Day } from "../screener-ui";
 import { DayPositions, WalletFinder } from "../position-history";
 import { reserveRequest } from "@/lib/history";
 import { LabelControls } from '../wallet-labels';
@@ -13,7 +13,7 @@ type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" |
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
 const emptyFilters: Filters = { invested: "", days: "", loss: "", minProfit: "", maxProfit: "" };
 const headings: [string, Sort][] = [["Wallet", "address"], ["Activities", "activities"], ["Avg. invested", "avgInvested"], ["30d P&L", "pnl30d"], ["Active days", "activeDays"], ["Max daily loss", "maxLoss"], ["Monthly profit", "monthlyProfit"]];
-const filterLabels: [keyof Filters, string, string][] = [["invested", "Min. avg. invested", "USD"], ["days", "Min. active days", "Days"], ["loss", "Max. daily loss", "USD"], ["minProfit", "Min. monthly profit", "USD"], ["maxProfit", "Max. monthly profit", "USD"]];
+const filterLabels: [keyof Filters, string][] = [["invested", "Min. avg. invested"], ["days", "Min. active days"], ["loss", "Max. daily loss"], ["minProfit", "Min. monthly profit"], ["maxProfit", "Max. monthly profit"]];
 
 function parseCSV(text: string) {
   const rows: string[][] = []; let row: string[] = [], value = "", quoted = false;
@@ -48,6 +48,7 @@ export default function Home() {
   const [sort, setSort] = useState<Sort>("monthlyProfit");
   const [direction, setDirection] = useState(-1);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const fileInput = useRef<HTMLInputElement>(null);
   const scanLock = useRef(false);
 
@@ -69,29 +70,43 @@ export default function Home() {
     return () => { window.removeEventListener("scroll", hide, true); window.removeEventListener("resize", hide); };
   }, []);
 
-  const shown = useMemo(() => rows.filter(r => {
+  const shown = useMemo(() => {
+    const metric = (r: Row, key: Sort): number | string | null => {
+      if (key === "avgInvested") return currency === "USD" ? r.avgInvested : r.avgInvestedSol ?? null;
+      if (key === "pnl30d") return currency === "USD" ? r.pnl30d : r.pnl30dSol ?? null;
+      if (key === "maxLoss") return largestLoss(r, month, currency);
+      if (key === "monthlyProfit") return monthPnl(r, month, currency);
+      return r[key];
+    };
+    return rows.filter(r => {
     if (r.error) return false;
-    return (filters.invested === "" || r.avgInvested !== null && r.avgInvested >= Number(filters.invested))
+    const invested = metric(r, "avgInvested"), loss = metric(r, "maxLoss"), profit = metric(r, "monthlyProfit");
+    return (filters.invested === "" || typeof invested === "number" && invested >= Number(filters.invested))
       && (filters.days === "" || r.activeDays !== null && r.activeDays >= Number(filters.days))
-      && (filters.loss === "" || r.maxLoss !== null && r.maxLoss <= Number(filters.loss))
-      && (filters.minProfit === "" || r.monthlyProfit !== null && r.monthlyProfit >= Number(filters.minProfit))
-      && (filters.maxProfit === "" || r.monthlyProfit !== null && r.monthlyProfit <= Number(filters.maxProfit));
+      && (filters.loss === "" || typeof loss === "number" && loss <= Number(filters.loss))
+      && (filters.minProfit === "" || typeof profit === "number" && profit >= Number(filters.minProfit))
+      && (filters.maxProfit === "" || typeof profit === "number" && profit <= Number(filters.maxProfit));
   }).sort((a, b) => {
-    const x = a[sort], y = b[sort];
+    const x = metric(a, sort), y = metric(b, sort);
     if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
     return (typeof x === "string" ? x.localeCompare(String(y)) : x - Number(y)) * direction;
-  }), [rows, filters, sort, direction]);
+  });
+  }, [rows, filters, sort, direction, currency, month]);
 
   const focus = shown.find(r => r.address === selected) || shown[0] || null;
   const failed = rows.filter(r => r.error).length;
   const today = new Date().toISOString().slice(0, 10);
   const daily = focus?.calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today) || [];
-  const winning = daily.filter(d => Number(d.pnl_usd) > 0).length;
-  const losing = daily.filter(d => Number(d.pnl_usd) < 0).length;
+  const winning = daily.filter(d => (dayPnl(d, currency) ?? 0) > 0).length;
+  const losing = daily.filter(d => (dayPnl(d, currency) ?? 0) < 0).length;
   const dayWin = winning + losing ? winning / (winning + losing) * 100 : null;
-  const values = daily.map(d => number(d.pnl_usd)).filter((n): n is number => n !== null);
-  const deposits = daily.reduce((s, d) => s + (number(d.deposit_usd) || 0), 0);
-  const withdrawn = daily.reduce((s, d) => s + (number(d.withdrawn_usd) || 0), 0);
+  const values = daily.map(d => dayPnl(d, currency)).filter((n): n is number => n !== null);
+  const deposits = daily.length && daily.every(d => number(currency === "USD" ? d.deposit_usd : d.deposit_sol) !== null) ? daily.reduce((s, d) => s + Number(currency === "USD" ? d.deposit_usd : d.deposit_sol), 0) : null;
+  const withdrawn = daily.length && daily.every(d => number(currency === "USD" ? d.withdrawn_usd : d.withdrawn_sol) !== null) ? daily.reduce((s, d) => s + Number(currency === "USD" ? d.withdrawn_usd : d.withdrawn_sol), 0) : null;
+  const monthly = monthPnl(focus, month, currency);
+  const loss = largestLoss(focus, month, currency);
+  const invested = currency === "USD" ? focus?.avgInvested : focus?.avgInvestedSol;
+  const pnl30d = currency === "USD" ? focus?.pnl30d : focus?.pnl30dSol;
 
   async function upload(file?: File) {
     if (!file || scanLock.current) return;
@@ -124,7 +139,7 @@ export default function Home() {
         const response = await fetch(url, { signal: AbortSignal.timeout(25000) });
         if ((response.status === 429 || response.status >= 500) && attempt < 2) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
         if (!response.ok) throw new Error("Meteora returned " + response.status);
-        return response.json() as Promise<{ data_points?: Day[]; avg_invested_usd?: string; pnl_usd?: string }>;
+        return response.json() as Promise<{ data_points?: Day[]; avg_invested_usd?: string; avg_invested_sol?: string; pnl_usd?: string; pnl_sol?: string }>;
       }
     }
     async function worker() {
@@ -138,10 +153,10 @@ export default function Home() {
           const days = calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today);
           const valid = days.length > 0 && days.every(d => number(d.pnl_usd) !== null);
           const pnl = days.map(d => Number(d.pnl_usd));
-          output.push({ ...wallet, avgInvested: number(p.avg_invested_usd), pnl30d: number(p.pnl_usd),
+          output.push({ ...wallet, avgInvested: number(p.avg_invested_usd), avgInvestedSol: number(p.avg_invested_sol), pnl30d: number(p.pnl_usd), pnl30dSol: number(p.pnl_sol),
             activeDays: valid ? days.filter(d => [d.pnl_usd, d.deposit_usd, d.withdrawn_usd, d.fees_earned_usd, d.closed_position_count].some(v => (number(v) || 0) !== 0)).length : null,
             maxLoss: valid ? Math.max(0, ...pnl.map(v => -v)) : null, monthlyProfit: valid ? pnl.reduce((a, b) => a + b, 0) : null, calendar });
-        } catch (e) { output.push({ ...wallet, avgInvested: null, pnl30d: null, activeDays: null, maxLoss: null, monthlyProfit: null, calendar: [], error: (e as Error).message }); }
+        } catch (e) { output.push({ ...wallet, avgInvested: null, avgInvestedSol: null, pnl30d: null, pnl30dSol: null, activeDays: null, maxLoss: null, monthlyProfit: null, calendar: [], error: (e as Error).message }); }
         done++; setStatus("Downloading " + done + " / " + wallets.length + " wallets");
       }
     }
@@ -168,7 +183,7 @@ export default function Home() {
   }
 
   function download() {
-    const data = ["address,activities,avg_invested_usd,pnl_30d_usd,active_days,max_daily_loss_usd,monthly_profit_usd", ...shown.map(r => [r.address, r.activities, r.avgInvested, r.pnl30d, r.activeDays, r.maxLoss, r.monthlyProfit].join(","))].join("\n");
+    const data = ["address,activities,avg_invested_usd,avg_invested_sol,pnl_30d_usd,pnl_30d_sol,active_days,max_daily_loss_usd,max_daily_loss_sol,monthly_profit_usd,monthly_profit_sol", ...shown.map(r => [r.address, r.activities, r.avgInvested, r.avgInvestedSol ?? "", r.pnl30d, r.pnl30dSol ?? "", r.activeDays, r.maxLoss, largestLoss(r, month, "SOL") ?? "", r.monthlyProfit, monthPnl(r, month, "SOL") ?? ""].join(","))].join("\n");
     const url = URL.createObjectURL(new Blob([data], { type: "text/csv" })), a = document.createElement("a"); a.href = url; a.download = "wallets-" + month + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
@@ -180,32 +195,32 @@ export default function Home() {
         <Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
         <Button disabled={!wallets.length || busy} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
     </div>
-    <div className="section-tabs"><span className="tab-current">Overview</span><span className="muted">USD</span><span className="status-text" role="status">{status}</span></div>
+    <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
     {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
       <LabelControls addresses={shown.map(r => r.address)} disabled={busy} />
       <div className="overview-label"><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
       <section className="metrics-strip" aria-label="Selected wallet metrics">
-        <div className="metric-card"><span>Monthly P&L</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong><small>Calendar month · USD</small></div>
+        <div className="metric-card"><span>Monthly P&L</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong><small>Calendar month · {currency}</small></div>
         <div className="metric-card"><span>Profitable days</span><strong>{dayWin === null ? "—" : dayWin.toFixed(1) + "%"}</strong><div className="win-bar"><i style={{ width: (dayWin || 0) + "%" }} /></div><small><b className="positive">{winning} win</b><span> / </span><b className="negative">{losing} loss</b></small></div>
-        <div className="metric-card"><span>Average invested</span><strong>{money(focus?.avgInvested)}</strong><small>Rolling 30 days</small></div>
+        <div className="metric-card"><span>Average invested</span><strong>{amount(invested, currency)}</strong><small>Rolling 30 days</small></div>
         <div className="metric-card"><span>Active days</span><strong>{focus?.activeDays ?? "—"}</strong><small>Activity in the selected month</small></div>
-        <div className="metric-card"><span>Largest daily loss</span><strong className={focus?.maxLoss ? "negative" : ""}>{money(focus?.maxLoss ? -focus.maxLoss : focus?.maxLoss)}</strong><small>Calendar month · USD</small></div>
+        <div className="metric-card"><span>Largest daily loss</span><strong className={loss ? "negative" : ""}>{amount(loss ? -loss : loss, currency)}</strong><small>Calendar month · {currency}</small></div>
       </section>
       <section className="overview-grid"><div className="performance-panel"><div className="panel-heading"><h2>Performance</h2><Wallet size={17} /></div>
-        <dl><div><dt>30-day P&L</dt><dd className={tone(focus?.pnl30d)}>{money(focus?.pnl30d)}</dd></div><div><dt>CSV activities</dt><dd>{focus?.activities ?? "—"}</dd></div><div><dt>Monthly deposits</dt><dd>{focus ? money(deposits) : "—"}</dd></div><div><dt>Monthly withdrawals</dt><dd>{focus ? money(withdrawn) : "—"}</dd></div><div><dt>Best day</dt><dd className={tone(values.length ? Math.max(...values) : null)}>{values.length ? money(Math.max(...values)) : "—"}</dd></div><div><dt>Worst day</dt><dd className={tone(values.length ? Math.min(...values) : null)}>{values.length ? money(Math.min(...values)) : "—"}</dd></div></dl>
-        <div className="profit-summary"><span>Monthly profit</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
-      </div><Calendar row={focus} month={month} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} /></section>
-      {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} close={() => setHistoryDay(null)} />}
+        <dl><div><dt>30-day P&L</dt><dd className={tone(pnl30d)}>{amount(pnl30d, currency)}</dd></div><div><dt>CSV activities</dt><dd>{focus?.activities ?? "—"}</dd></div><div><dt>Monthly deposits</dt><dd>{focus ? amount(deposits, currency) : "—"}</dd></div><div><dt>Monthly withdrawals</dt><dd>{focus ? amount(withdrawn, currency) : "—"}</dd></div><div><dt>Best day</dt><dd className={tone(values.length ? Math.max(...values) : null)}>{values.length ? amount(Math.max(...values), currency) : "—"}</dd></div><div><dt>Worst day</dt><dd className={tone(values.length ? Math.min(...values) : null)}>{values.length ? amount(Math.min(...values), currency) : "—"}</dd></div></dl>
+        <div className="profit-summary"><span>Monthly profit</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
+      </div><Calendar row={focus} month={month} currency={currency} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} /></section>
+      {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} currency={currency} close={() => setHistoryDay(null)} />}
       <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} />
       <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span></h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
-        <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label, unit]) => <label key={key}>{label}<div className="filter-input"><Input type="number" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{unit}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
+        <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label]) => <label key={key}>{label}<div className="filter-input"><Input type="number" step="any" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{key === "days" ? "Days" : currency}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
         <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseMove={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>
-          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{money(row.avgInvested)}</td><td className={tone(row.pnl30d)}>{money(row.pnl30d)}</td><td>{row.activeDays ?? "—"}</td><td className={row.maxLoss ? "negative" : ""}>{money(row.maxLoss ? -row.maxLoss : row.maxLoss)}</td><td className={tone(row.monthlyProfit)}>{money(row.monthlyProfit)}</td>
+          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{amount(currency === "USD" ? row.avgInvested : row.avgInvestedSol, currency)}</td><td className={tone(currency === "USD" ? row.pnl30d : row.pnl30dSol)}>{amount(currency === "USD" ? row.pnl30d : row.pnl30dSol, currency)}</td><td>{row.activeDays ?? "—"}</td><td className={largestLoss(row, month, currency) ? "negative" : ""}>{amount(largestLoss(row, month, currency) ? -largestLoss(row, month, currency)! : largestLoss(row, month, currency), currency)}</td><td className={tone(monthPnl(row, month, currency))}>{amount(monthPnl(row, month, currency), currency)}</td>
         </tr>)}{!shown.length && <tr><td colSpan={7} className="empty-table"><FileSpreadsheet size={24} /><strong>{rows.length ? "No wallets match your filters" : "Your wallet scan starts here"}</strong><span>{rows.length ? "Adjust or reset the filters to see more results." : "Import an activity CSV, then scan to load performance and daily P&L."}</span></td></tr>}</tbody></table></div>
-        <footer className="table-footer"><span>{shown.length} of {rows.length} wallets{!saved ? " · Not saved yet" : ""}</span><span>Monthly metrics use UTC calendar days. Avg. invested and 30d P&L use a rolling window.</span></footer>
+        <footer className="table-footer"><span>{shown.length} of {rows.length} wallets{!saved ? " · Not saved yet" : ""}</span><span>Monthly metrics use UTC calendar days. Avg. invested and 30d P&L use a rolling window. Missing SOL figures require a refreshed scan.</span></footer>
       </section>
     </div>
-    {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={month} compact /></div>}
+    {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={month} currency={currency} compact /></div>}
   </main>;
 }
