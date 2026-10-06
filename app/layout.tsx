@@ -5,9 +5,6 @@ import { WalletLabelsProvider } from './wallet-labels';
 export const metadata: Metadata = {
   title: "Meteora Wallet Screener",
   description: "Persistent wallet performance screening for Meteora portfolios.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

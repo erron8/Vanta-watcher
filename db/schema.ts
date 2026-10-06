@@ -29,6 +29,7 @@ export const walletMetrics = sqliteTable(
 
 export const bookmarks = sqliteTable("bookmarks", {
   address: text("address").primaryKey(),
+  name: text("name").notNull().default(""),
   createdAt: text("created_at").notNull(),
 });
 

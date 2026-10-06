@@ -43,6 +43,7 @@ export default function Home() {
   const [historyDay, setHistoryDay] = useState<{ wallet: string; date: string } | null>(null);
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [bookmarkNames, setBookmarkNames] = useState<Record<string, string>>({});
   const [bookmarkPending, setBookmarkPending] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<Sort>("monthlyProfit");
   const [direction, setDirection] = useState(-1);
@@ -58,8 +59,8 @@ export default function Home() {
         setStatus(data.scan.walletCount + " wallets · Saved " + new Date(data.scan.createdAt).toLocaleString());
       } else setStatus("Upload an activity CSV to start.");
     }).catch(e => { setProblem(e.message); setStatus("Saved scan unavailable."); });
-    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string }[]>; })
-      .then(data => setBookmarks(new Set(data.map((r: { address: string }) => r.address)))).catch(e => setProblem(e.message));
+    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string }[]>; })
+      .then(data => { setBookmarks(new Set(data.map(r => r.address))); setBookmarkNames(Object.fromEntries(data.map(r => [r.address, r.name]))); }).catch(e => setProblem(e.message));
   }, []);
 
   useEffect(() => {
@@ -161,6 +162,7 @@ export default function Home() {
       const response = await fetch("/api/bookmarks", { method: remove ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
       if (!response.ok) throw new Error("Could not update the bookmark.");
       setBookmarks(prev => { const next = new Set(prev); if (remove) next.delete(address); else next.add(address); return next; });
+      setBookmarkNames(prev => { const next = { ...prev }; delete next[address]; return next; });
     } catch (e) { setProblem((e as Error).message); }
     finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
   }
@@ -199,7 +201,7 @@ export default function Home() {
       <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span></h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
         <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label, unit]) => <label key={key}>{label}<div className="filter-input"><Input type="number" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{unit}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
         <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseMove={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>
-          <td><WalletAddress address={row.address} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{money(row.avgInvested)}</td><td className={tone(row.pnl30d)}>{money(row.pnl30d)}</td><td>{row.activeDays ?? "—"}</td><td className={row.maxLoss ? "negative" : ""}>{money(row.maxLoss ? -row.maxLoss : row.maxLoss)}</td><td className={tone(row.monthlyProfit)}>{money(row.monthlyProfit)}</td>
+          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{money(row.avgInvested)}</td><td className={tone(row.pnl30d)}>{money(row.pnl30d)}</td><td>{row.activeDays ?? "—"}</td><td className={row.maxLoss ? "negative" : ""}>{money(row.maxLoss ? -row.maxLoss : row.maxLoss)}</td><td className={tone(row.monthlyProfit)}>{money(row.monthlyProfit)}</td>
         </tr>)}{!shown.length && <tr><td colSpan={7} className="empty-table"><FileSpreadsheet size={24} /><strong>{rows.length ? "No wallets match your filters" : "Your wallet scan starts here"}</strong><span>{rows.length ? "Adjust or reset the filters to see more results." : "Import an activity CSV, then scan to load performance and daily P&L."}</span></td></tr>}</tbody></table></div>
         <footer className="table-footer"><span>{shown.length} of {rows.length} wallets{!saved ? " · Not saved yet" : ""}</span><span>Monthly metrics use UTC calendar days. Avg. invested and 30d P&L use a rolling window.</span></footer>
       </section>

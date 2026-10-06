@@ -1,0 +1,1 @@
+ALTER TABLE `bookmarks` ADD `name` text DEFAULT '' NOT NULL;

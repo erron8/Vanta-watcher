@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Copy, Star, Check, Layers3 } from "lucide-react";
 import { useState } from "react";
 import { WalletPills } from './wallet-labels';
@@ -13,13 +12,13 @@ export const tone = (v: number | null | undefined) => v == null || v === 0 ? "" 
 export const monthName = (month: string) => new Date(month + "-01T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
 export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
-  return <header className="app-nav"><Link className="brand" href="/"><Layers3 size={25} /><span>supir</span></Link><nav aria-label="Main navigation"><Link href="/" className={active === "screener" ? "nav-active" : ""}>Wallet screener</Link><Link href="/bookmarks" className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</Link></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
+  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>supir</span></a><nav aria-label="Main navigation"><a href="/" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
 }
 
-export function WalletAddress({ address, marked, pending, onBookmark, onError }: { address: string; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void }) {
+export function WalletAddress({ address, name, marked, pending, onBookmark, onError }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void }) {
   const [copied, setCopied] = useState(false);
   async function copy() { try { await navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { onError("Could not copy. Select the full address and copy it manually."); } }
-  return <div className="wallet-address" onClick={e => e.stopPropagation()}><a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button><WalletPills address={address} /></div>;
+  return <div className="wallet-address" onClick={e => e.stopPropagation()}>{name && <span className="wallet-alias" title={name}>{name}</span>}<a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button><WalletPills address={address} /></div>;
 }
 
 export function Calendar({ row, month, compact = false, onDateClick }: { row: Row | null; month: string; compact?: boolean; onDateClick?: (date: string) => void }) {
