@@ -1,5 +1,6 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "vanta-watcher",
+  "description": "Meteora DLMM wallet screener with CSV imports, daily P&L, and bookmarks",
   "version": "0.1.0",
   "private": true,
   "engines": {
