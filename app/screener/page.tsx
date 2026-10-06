@@ -8,6 +8,7 @@ import { Calendar, Navigation, WalletAddress, amount, dayPnl, largestLoss, month
 import { DayPositions, WalletFinder } from "../position-history";
 import { reserveRequest } from "@/lib/history";
 import { LabelControls } from '../wallet-labels';
+import { primaryPool, shortToken } from "@/lib/pool-label";
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
@@ -38,6 +39,7 @@ export default function Home() {
   const [status, setStatus] = useState("Loading saved scan…");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resolvingPool, setResolvingPool] = useState(false);
   const [saved, setSaved] = useState(true);
   const [selected, setSelected] = useState("");
   const [historyDay, setHistoryDay] = useState<{ wallet: string; date: string } | null>(null);
@@ -107,9 +109,11 @@ export default function Home() {
   const loss = largestLoss(focus, month, currency);
   const invested = currency === "USD" ? focus?.avgInvested : focus?.avgInvestedSol;
   const pnl30d = currency === "USD" ? focus?.pnl30d : focus?.pnl30dSol;
+  const displaySource = source.toLowerCase().endsWith(".csv") ? "Imported wallet scan" : source;
 
   async function upload(file?: File) {
-    if (!file || scanLock.current) return;
+    if (!file || scanLock.current || resolvingPool) return;
+    setResolvingPool(true);
     try {
       const data = parseCSV(await file.text()), index = data[0]?.findIndex(h => h.trim().toLowerCase() === "from");
       if (index === undefined || index < 0) throw new Error("The CSV must contain a From column.");
@@ -117,20 +121,31 @@ export default function Home() {
       data.slice(1).forEach(r => { const address = (r[index] || "").trim(); if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) counts.set(address, (counts.get(address) || 0) + 1); });
       if (!counts.size) throw new Error("No valid wallet addresses found.");
       if (counts.size > 2000) throw new Error("Use a CSV with up to 2,000 unique wallets.");
+      const pool = primaryPool(data);
+      let label = pool ? `${shortToken(pool.base)}-${shortToken(pool.quote)}` : "Imported wallet scan";
+      if (pool && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pool.base) && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pool.quote)) {
+        setStatus("Resolving pool token names…");
+        try {
+          const query = new URLSearchParams({ base: pool.base, quote: pool.quote });
+          const response = await fetch("/api/pool-label?" + query, { signal: AbortSignal.timeout(8000) });
+          if (response.ok) label = ((await response.json()) as { label: string }).label || label;
+        } catch { /* A shortened mint still identifies the pool when metadata is unavailable. */ }
+      }
       setWallets([...counts].map(([address, activities]) => ({ address, activities })));
-      setSource(file.name); setRows([]); setSelected(""); setHover(null); setProblem(""); setSaved(true);
+      setSource(label); setRows([]); setSelected(""); setHover(null); setProblem(""); setSaved(true);
       setStatus(counts.size + " unique wallets extracted. Ready to scan.");
     } catch (e) { setProblem((e as Error).message); }
+    finally { setResolvingPool(false); }
   }
 
   async function save(data: Row[]) {
-    const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: source, month, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
+    const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: displaySource, month, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
     if (!r.ok) throw new Error("The scan is downloaded but could not be saved. Use Retry save.");
     setSaved(true);
   }
 
   async function scan() {
-    if (!wallets.length || scanLock.current || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
+    if (!wallets.length || scanLock.current || resolvingPool || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
     scanLock.current = true; setBusy(true); setProblem(""); setHover(null);
     const queue = [...wallets], output: Row[] = []; let done = 0;
     async function get(url: string) {
@@ -189,11 +204,11 @@ export default function Home() {
 
   return <main className="terminal"><Navigation active="screener" />
     <div className="import-bar" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void upload(e.dataTransfer.files[0]); }}>
-      <div className="source-label"><FileSpreadsheet size={17} /><span title={source}>{source || "No activity CSV loaded"}</span>{wallets.length > 0 && <span className="count-badge">{wallets.length} wallets</span>}</div>
+      <div className="source-label"><FileSpreadsheet size={17} /><span title={displaySource}>{displaySource || "No activity CSV loaded"}</span>{wallets.length > 0 && <span className="count-badge">{wallets.length} wallets</span>}</div>
       <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setRows([]); setSelected(""); setHover(null); setSaved(true); setStatus("Month changed. Download data for the selected month."); } }} /></label>
         <input ref={fileInput} className="sr-only" type="file" accept=".csv,text/csv" aria-label="Upload activity CSV" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
-        <Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
-        <Button disabled={!wallets.length || busy} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
+        <Button variant="outline" disabled={busy || resolvingPool} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
+        <Button disabled={!wallets.length || busy || resolvingPool} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
     </div>
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
     {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}

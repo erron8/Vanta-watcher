@@ -6,7 +6,7 @@ Live Site: [Vanta Wallet Screener](https://vanta-wallet-screener.void-space-4951
 
 ## What it does
 
-- Extracts unique Solana wallet addresses from an activity CSV and fetches Meteora calendar and 30-day performance data.
+- Extracts unique Solana wallet addresses from an activity CSV, names the primary liquidity pool from its token mints, and fetches Meteora calendar and 30-day performance data.
 - Saves USD and native SOL results in Cloudflare D1 so switching currency, sorting, and filtering do not refetch every wallet. Older scans may need one refresh for SOL 30-day metrics.
 - Filters by average invested, active days, maximum daily loss, and minimum or maximum monthly profit; sorts the wallet table by each metric.
 - Shows daily P&L and loads closed-position details only when a calendar date is selected. A separate position finder can narrow candidate wallets using TVL, P&L, holding time, pair, and close date.
