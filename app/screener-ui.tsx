@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-html-link-for-pages -- Vinext navigation currently needs native anchors here. */
+/* eslint-disable @next/next/no-html-link-for-pages -- Vinext client-side Link navigation fails in this deployment. */
 
 import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";

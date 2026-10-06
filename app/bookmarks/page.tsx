@@ -6,20 +6,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pencil, Plus } from 'lucide-react';
 import { isSolanaAddress } from '@/lib/solana-address';
+import { readSessionCache, writeSessionCache } from '@/lib/session-cache';
+
+type BookmarkRow = { address: string; name: string; createdAt: string };
+const bookmarkCacheKey = 'vanta:bookmarks:v1';
+let recentBookmarks: BookmarkRow[] | null = null;
 
 export default function Bookmarks() {
-  const [rows, setRows] = useState<{ address: string; name: string; createdAt: string }[]>([]);
+  const [rows, setRows] = useState<BookmarkRow[]>(() => recentBookmarks || []);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [notice, setNotice] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => recentBookmarks === null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [newAddress, setNewAddress] = useState('');
   const [adding, setAdding] = useState(false);
   useEffect(() => {
-    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string; createdAt: string }[]>; })
-      .then(setRows).catch(e => setError(e.message)).finally(() => setLoading(false));
+    let active = true;
+    const cached = readSessionCache<BookmarkRow[]>(bookmarkCacheKey);
+    if (cached) Promise.resolve().then(() => { if (active) { recentBookmarks = cached; setRows(cached); setLoading(false); } });
+    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<BookmarkRow[]>; })
+      .then(data => { if (active) { recentBookmarks = data; writeSessionCache(bookmarkCacheKey, data); setRows(data); } }).catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
   async function addWallet() {
     const address = newAddress.trim();
@@ -30,7 +39,7 @@ export default function Bookmarks() {
       const response = await fetch('/api/bookmarks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
       const data = await response.json() as { address?: string; name?: string; createdAt?: string; created?: boolean; error?: string };
       if (!response.ok || !data.address || !data.createdAt) throw new Error(data.error || 'Could not save the wallet. Please retry.');
-      setRows(prev => [{ address: data.address!, name: data.name || '', createdAt: data.createdAt! }, ...prev.filter(row => row.address !== data.address)]);
+      setRows(prev => { const next = [{ address: data.address!, name: data.name || '', createdAt: data.createdAt! }, ...prev.filter(row => row.address !== data.address)]; recentBookmarks = next; writeSessionCache(bookmarkCacheKey, next); return next; });
       setNewAddress('');
       setNotice(data.created ? 'Wallet added to bookmarks.' : 'This wallet was already bookmarked.');
     } catch (e) { setError((e as Error).message); }
@@ -43,7 +52,7 @@ export default function Bookmarks() {
       const response = await fetch('/api/bookmarks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, name: draft }) });
       const data = await response.json() as { name?: string; error?: string };
       if (!response.ok) throw new Error(data.error || 'Could not save the wallet name.');
-      setRows(prev => prev.map(row => row.address === address ? { ...row, name: data.name || '' } : row));
+      setRows(prev => { const next = prev.map(row => row.address === address ? { ...row, name: data.name || '' } : row); recentBookmarks = next; writeSessionCache(bookmarkCacheKey, next); return next; });
       setEditing(null); setNotice(data.name ? 'Wallet name saved.' : 'Wallet name cleared.');
     } catch (e) { setError((e as Error).message); }
     finally { setPending(null); }
@@ -53,7 +62,7 @@ export default function Bookmarks() {
     try {
       const r = await fetch("/api/bookmarks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
       if (!r.ok) throw new Error("Could not remove the bookmark.");
-      setRows(prev => prev.filter(row => row.address !== address));
+      setRows(prev => { const next = prev.filter(row => row.address !== address); recentBookmarks = next; writeSessionCache(bookmarkCacheKey, next); return next; });
     } catch (e) { setError((e as Error).message); }
     finally { setPending(null); }
   }

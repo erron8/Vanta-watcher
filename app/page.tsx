@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-html-link-for-pages -- Vinext navigation currently needs native anchors here. */
+/* eslint-disable @next/next/no-html-link-for-pages -- Vinext client-side Link navigation fails in this deployment. */
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, FileSpreadsheet, Layers3, Search, SlidersHorizontal, Sparkles, TrendingUp } from "lucide-react";
 
 const days = [
