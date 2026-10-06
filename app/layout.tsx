@@ -5,7 +5,7 @@ import "./palette.css";
 import { WalletLabelsProvider } from './wallet-labels';
 
 export const metadata: Metadata = {
-  title: "Supir | Meteora wallet research",
+  title: "Vanta | Meteora wallet research",
   description: "Explore Meteora wallet performance, daily P&L, and your own wallet shortlist.",
   icons: {
     icon: "/favicon.svg?v=2",

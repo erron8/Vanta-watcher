@@ -21,7 +21,7 @@ export default function LandingPage() {
   return <main className="landing-shell">
     <header className="landing-header">
       <div className="landing-container landing-header-inner">
-        <a className="landing-brand" href="/" aria-label="Supir home"><span className="landing-brand-mark"><Layers3 size={23} strokeWidth={2.6} /></span><span>supir</span></a>
+        <a className="landing-brand" href="/" aria-label="Vanta home"><span className="landing-brand-mark"><Layers3 size={23} strokeWidth={2.6} /></span><span>Vanta</span></a>
         <a className="landing-header-cta" href="/screener">Open screener <ArrowUpRight size={19} /></a>
       </div>
     </header>
@@ -36,7 +36,7 @@ export default function LandingPage() {
           <div className="landing-float landing-float-left"><span className="landing-float-icon"><TrendingUp size={17} /></span><div><small>Performance at a glance</small><strong>Know the trend.</strong></div></div>
           <div className="landing-float landing-float-right"><span className="landing-float-icon"><Bookmark size={17} /></span><div><small>Your own shortlist</small><strong>Save what matters.</strong></div></div>
           <div className="landing-preview-window" aria-label="Illustrative preview of the wallet screener">
-            <div className="landing-preview-top"><div className="landing-preview-logo"><span className="landing-preview-logo-mark"><Layers3 size={15} /></span>supir</div><div className="landing-preview-tabs"><span>Overview</span><span>Wallets</span><span>Bookmarks</span></div><div className="landing-preview-search"><Search size={13} /> Search wallets</div></div>
+            <div className="landing-preview-top"><div className="landing-preview-logo"><span className="landing-preview-logo-mark"><Layers3 size={15} /></span>Vanta</div><div className="landing-preview-tabs"><span>Overview</span><span>Wallets</span><span>Bookmarks</span></div><div className="landing-preview-search"><Search size={13} /> Search wallets</div></div>
             <div className="landing-preview-body">
               <div className="landing-preview-heading"><div><span className="landing-preview-kicker">WALLET SCREENER</span><strong>Know your next move.</strong><small>One place to compare performance, activity, and risk.</small></div><span className="landing-preview-period"><CalendarDays size={13} /> This month</span></div>
               <div className="landing-preview-stats"><div><small>Monthly P&amp;L</small><strong className="landing-demo-green">+$3,284.62</strong><span><ArrowUpRight size={12} /> Positive month</span></div><div><small>Profitable days</small><strong>72.4%</strong><span>21 of 29 active days</span></div><div><small>Average invested</small><strong>$2,410</strong><span>Rolling 30 days</span></div><div><small>Active days</small><strong>29</strong><span>Selected month</span></div></div>
@@ -51,6 +51,6 @@ export default function LandingPage() {
     <section className="landing-features" id="features" aria-labelledby="features-title"><div className="landing-container"><div className="landing-section-heading"><span className="landing-section-tag"><span /> BUILT FOR BETTER RESEARCH</span><h2 id="features-title">Less noise.<br />More conviction.</h2><p>The tools you need to move from a wallet list to a useful view of performance.</p></div><div className="landing-feature-grid">{features.map(feature => <article className="landing-feature" key={feature.number}><div className="landing-feature-top"><span>{feature.number} / 03</span><span className="landing-feature-icon"><feature.icon size={23} strokeWidth={1.8} /></span></div><div><h3>{feature.title}</h3><p>{feature.description}</p></div><Check className="landing-feature-check" size={18} /></article>)}</div></div></section>
 
     <section className="landing-bottom-cta"><div className="landing-container landing-bottom-inner"><div><span>READY WHEN YOU ARE</span><h2>Make sense of every wallet.</h2><p>Bring your CSV, set your filters, and start exploring.</p></div><a href="/screener">Go to wallet screener <ArrowUpRight size={20} /></a></div></section>
-    <footer className="landing-footer"><div className="landing-container"><a className="landing-brand" href="/"><span className="landing-brand-mark"><Layers3 size={20} strokeWidth={2.6} /></span><span>supir</span></a><span>Wallet research for Meteora on Solana.</span><div><a href="/screener">Screener</a><a href="/bookmarks">Bookmarks</a></div></div></footer>
+    <footer className="landing-footer"><div className="landing-container"><a className="landing-brand" href="/"><span className="landing-brand-mark"><Layers3 size={20} strokeWidth={2.6} /></span><span>Vanta</span></a><span>Wallet research for Meteora on Solana.</span><div><a href="/screener">Screener</a><a href="/bookmarks">Bookmarks</a></div></div></footer>
   </main>;
 }
