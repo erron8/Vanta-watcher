@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- Vinext navigation currently needs native anchors here. */
 
 import { Copy, Star, Check, Layers3 } from "lucide-react";
 import { useState } from "react";
@@ -12,7 +13,7 @@ export const tone = (v: number | null | undefined) => v == null || v === 0 ? "" 
 export const monthName = (month: string) => new Date(month + "-01T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
 export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
-  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>supir</span></a><nav aria-label="Main navigation"><a href="/" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
+  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>supir</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
 }
 
 export function WalletAddress({ address, name, marked, pending, onBookmark, onError }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void }) {

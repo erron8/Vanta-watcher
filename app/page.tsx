@@ -1,211 +1,57 @@
-"use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- Vinext navigation currently needs native anchors here. */
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, FileSpreadsheet, Layers3, Search, SlidersHorizontal, Sparkles, TrendingUp } from "lucide-react";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadsheet, Loader2, RotateCcw, SlidersHorizontal, Upload, Wallet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, Navigation, WalletAddress, money, number, tone, monthName, type Row, type Day } from "./screener-ui";
-import { DayPositions, WalletFinder } from "./position-history";
-import { reserveRequest } from "@/lib/history";
-import { LabelControls } from './wallet-labels';
+const days = [
+  { day: "01", amount: "+$426", tone: "up" },
+  { day: "02", amount: "+$182", tone: "up" },
+  { day: "03", amount: "−$74", tone: "down" },
+  { day: "04", amount: "+$319", tone: "up" },
+  { day: "05", amount: "+$508", tone: "up" },
+  { day: "06", amount: "−$92", tone: "down" },
+  { day: "07", amount: "+$267", tone: "up" },
+];
 
-type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
-type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
-const emptyFilters: Filters = { invested: "", days: "", loss: "", minProfit: "", maxProfit: "" };
-const headings: [string, Sort][] = [["Wallet", "address"], ["Activities", "activities"], ["Avg. invested", "avgInvested"], ["30d P&L", "pnl30d"], ["Active days", "activeDays"], ["Max daily loss", "maxLoss"], ["Monthly profit", "monthlyProfit"]];
-const filterLabels: [keyof Filters, string, string][] = [["invested", "Min. avg. invested", "USD"], ["days", "Min. active days", "Days"], ["loss", "Max. daily loss", "USD"], ["minProfit", "Min. monthly profit", "USD"], ["maxProfit", "Max. monthly profit", "USD"]];
+const features = [
+  { number: "01", icon: FileSpreadsheet, title: "Import a CSV", description: "Turn DeFi activity exports into a list of unique wallets ready to inspect." },
+  { number: "02", icon: SlidersHorizontal, title: "Find your signal", description: "Filter by average invested, active days, daily loss, and monthly profit." },
+  { number: "03", icon: Bookmark, title: "Keep the good ones", description: "Bookmark promising wallets, give them names, and return to your shortlist." },
+];
 
-function parseCSV(text: string) {
-  const rows: string[][] = []; let row: string[] = [], value = "", quoted = false;
-  text = text.replace(/^\uFEFF/, "");
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === '"') { if (quoted && text[i + 1] === '"') { value += '"'; i++; } else quoted = !quoted; }
-    else if (c === "," && !quoted) { row.push(value); value = ""; }
-    else if ((c === "\n" || c === "\r") && !quoted) { if (c === "\r" && text[i + 1] === "\n") i++; row.push(value); if (row.some(x => x.trim())) rows.push(row); row = []; value = ""; }
-    else value += c;
-  }
-  if (quoted) throw new Error("The CSV has an unclosed quoted field.");
-  row.push(value); if (row.some(x => x.trim())) rows.push(row);
-  return rows;
-}
+export default function LandingPage() {
+  return <main className="landing-shell">
+    <header className="landing-header">
+      <div className="landing-container landing-header-inner">
+        <a className="landing-brand" href="/" aria-label="Supir home"><span className="landing-brand-mark"><Layers3 size={23} strokeWidth={2.6} /></span><span>supir</span></a>
+        <nav className="landing-nav" aria-label="Main navigation"><a href="#features">Features</a><a href="/screener">Wallet screener</a><a href="/bookmarks">Bookmarks</a></nav>
+        <a className="landing-header-cta" href="/screener">Open screener <ArrowUpRight size={19} /></a>
+      </div>
+    </header>
 
-export default function Home() {
-  const [wallets, setWallets] = useState<{ address: string; activities: number }[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [source, setSource] = useState("");
-  const [status, setStatus] = useState("Loading saved scan…");
-  const [problem, setProblem] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(true);
-  const [selected, setSelected] = useState("");
-  const [historyDay, setHistoryDay] = useState<{ wallet: string; date: string } | null>(null);
-  const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null);
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
-  const [bookmarkNames, setBookmarkNames] = useState<Record<string, string>>({});
-  const [bookmarkPending, setBookmarkPending] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<Sort>("monthlyProfit");
-  const [direction, setDirection] = useState(-1);
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const scanLock = useRef(false);
+    <section className="landing-hero" aria-labelledby="landing-title">
+      <div className="landing-container landing-hero-inner">
+        <span className="landing-eyebrow"><span className="landing-eyebrow-dot" /> A clearer view of Meteora wallets <Sparkles size={14} /></span>
+        <h1 id="landing-title">Find the wallets<br /><span>worth watching.</span></h1>
+        <p className="landing-intro">From a CSV to a shortlist. Explore daily P&amp;L, compare wallet performance, and spot the activity that matters to you.</p>
+        <div className="landing-hero-actions"><a className="landing-primary" href="/screener">Open wallet screener <span><ArrowRight size={22} /></span></a><a className="landing-secondary" href="#features">See how it works <span><ArrowDownRight size={20} /></span></a></div>
+        <div className="landing-product-stage" id="preview">
+          <div className="landing-float landing-float-left"><span className="landing-float-icon"><TrendingUp size={17} /></span><div><small>Performance at a glance</small><strong>Know the trend.</strong></div></div>
+          <div className="landing-float landing-float-right"><span className="landing-float-icon"><Bookmark size={17} /></span><div><small>Your own shortlist</small><strong>Save what matters.</strong></div></div>
+          <div className="landing-preview-window" aria-label="Illustrative preview of the wallet screener">
+            <div className="landing-preview-top"><div className="landing-preview-logo"><span className="landing-preview-logo-mark"><Layers3 size={15} /></span>supir</div><div className="landing-preview-tabs"><span>Overview</span><span>Wallets</span><span>Bookmarks</span></div><div className="landing-preview-search"><Search size={13} /> Search wallets</div></div>
+            <div className="landing-preview-body">
+              <div className="landing-preview-heading"><div><span className="landing-preview-kicker">WALLET SCREENER</span><strong>Know your next move.</strong><small>One place to compare performance, activity, and risk.</small></div><span className="landing-preview-period"><CalendarDays size={13} /> This month</span></div>
+              <div className="landing-preview-stats"><div><small>Monthly P&amp;L</small><strong className="landing-demo-green">+$3,284.62</strong><span><ArrowUpRight size={12} /> Positive month</span></div><div><small>Profitable days</small><strong>72.4%</strong><span>21 of 29 active days</span></div><div><small>Average invested</small><strong>$2,410</strong><span>Rolling 30 days</span></div><div><small>Active days</small><strong>29</strong><span>Selected month</span></div></div>
+              <div className="landing-preview-lower"><div className="landing-preview-calendar"><div className="landing-preview-section-title"><strong>Daily P&amp;L</strong><span>September</span></div><div className="landing-preview-days">{days.map(day => <div className={`landing-preview-day ${day.tone}`} key={day.day}><small>{day.day}</small><strong>{day.amount}</strong></div>)}</div><div className="landing-preview-chart"><span style={{ height: "29%" }} /><span style={{ height: "56%" }} /><span style={{ height: "39%" }} /><span style={{ height: "76%" }} /><span style={{ height: "44%" }} /><span style={{ height: "93%" }} /><span style={{ height: "67%" }} /><span style={{ height: "82%" }} /><span style={{ height: "53%" }} /><span style={{ height: "100%" }} /><span style={{ height: "73%" }} /><span style={{ height: "89%" }} /></div></div><div className="landing-preview-list"><div className="landing-preview-section-title"><strong>Wallets to watch</strong><span>View all <ArrowUpRight size={12} /></span></div>{["8xi7...Rc2p", "By4k...zQm1", "9hK2...Dpx8"].map((wallet, index) => <div className="landing-preview-wallet" key={wallet}><span className="landing-preview-avatar">{index + 1}</span><span><strong>{wallet}</strong><small>Solana wallet</small></span><b>+{["18.4", "12.7", "9.6"][index]}%</b></div>)}</div></div>
+            </div>
+          </div>
+          <span className="landing-preview-disclaimer">Illustrative interface preview · sample figures</span>
+        </div>
+      </div>
+    </section>
 
-  useEffect(() => {
-    fetch("/api/scans").then(async r => { if (!r.ok) throw new Error("Could not load the saved scan."); return r.json() as Promise<{ scan: { month: string; sourceName: string; walletCount: number; createdAt: string } | null; rows: Row[] }>; }).then(data => {
-      if (data.scan) {
-        setRows(data.rows); setMonth(data.scan.month); setSource(data.scan.sourceName);
-        setWallets(data.rows.map((r: Row) => ({ address: r.address, activities: r.activities })));
-        setStatus(data.scan.walletCount + " wallets · Saved " + new Date(data.scan.createdAt).toLocaleString());
-      } else setStatus("Upload an activity CSV to start.");
-    }).catch(e => { setProblem(e.message); setStatus("Saved scan unavailable."); });
-    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string }[]>; })
-      .then(data => { setBookmarks(new Set(data.map(r => r.address))); setBookmarkNames(Object.fromEntries(data.map(r => [r.address, r.name]))); }).catch(e => setProblem(e.message));
-  }, []);
+    <section className="landing-features" id="features" aria-labelledby="features-title"><div className="landing-container"><div className="landing-section-heading"><span className="landing-section-tag"><span /> BUILT FOR BETTER RESEARCH</span><h2 id="features-title">Less noise.<br />More conviction.</h2><p>The tools you need to move from a wallet list to a useful view of performance.</p></div><div className="landing-feature-grid">{features.map(feature => <article className="landing-feature" key={feature.number}><div className="landing-feature-top"><span>{feature.number} / 03</span><span className="landing-feature-icon"><feature.icon size={23} strokeWidth={1.8} /></span></div><div><h3>{feature.title}</h3><p>{feature.description}</p></div><Check className="landing-feature-check" size={18} /></article>)}</div></div></section>
 
-  useEffect(() => {
-    const hide = () => setHover(null);
-    window.addEventListener("scroll", hide, true); window.addEventListener("resize", hide);
-    return () => { window.removeEventListener("scroll", hide, true); window.removeEventListener("resize", hide); };
-  }, []);
-
-  const shown = useMemo(() => rows.filter(r => {
-    if (r.error) return false;
-    return (filters.invested === "" || r.avgInvested !== null && r.avgInvested >= Number(filters.invested))
-      && (filters.days === "" || r.activeDays !== null && r.activeDays >= Number(filters.days))
-      && (filters.loss === "" || r.maxLoss !== null && r.maxLoss <= Number(filters.loss))
-      && (filters.minProfit === "" || r.monthlyProfit !== null && r.monthlyProfit >= Number(filters.minProfit))
-      && (filters.maxProfit === "" || r.monthlyProfit !== null && r.monthlyProfit <= Number(filters.maxProfit));
-  }).sort((a, b) => {
-    const x = a[sort], y = b[sort];
-    if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
-    return (typeof x === "string" ? x.localeCompare(String(y)) : x - Number(y)) * direction;
-  }), [rows, filters, sort, direction]);
-
-  const focus = shown.find(r => r.address === selected) || shown[0] || null;
-  const failed = rows.filter(r => r.error).length;
-  const today = new Date().toISOString().slice(0, 10);
-  const daily = focus?.calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today) || [];
-  const winning = daily.filter(d => Number(d.pnl_usd) > 0).length;
-  const losing = daily.filter(d => Number(d.pnl_usd) < 0).length;
-  const dayWin = winning + losing ? winning / (winning + losing) * 100 : null;
-  const values = daily.map(d => number(d.pnl_usd)).filter((n): n is number => n !== null);
-  const deposits = daily.reduce((s, d) => s + (number(d.deposit_usd) || 0), 0);
-  const withdrawn = daily.reduce((s, d) => s + (number(d.withdrawn_usd) || 0), 0);
-
-  async function upload(file?: File) {
-    if (!file || scanLock.current) return;
-    try {
-      const data = parseCSV(await file.text()), index = data[0]?.findIndex(h => h.trim().toLowerCase() === "from");
-      if (index === undefined || index < 0) throw new Error("The CSV must contain a From column.");
-      const counts = new Map<string, number>();
-      data.slice(1).forEach(r => { const address = (r[index] || "").trim(); if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) counts.set(address, (counts.get(address) || 0) + 1); });
-      if (!counts.size) throw new Error("No valid wallet addresses found.");
-      if (counts.size > 2000) throw new Error("Use a CSV with up to 2,000 unique wallets.");
-      setWallets([...counts].map(([address, activities]) => ({ address, activities })));
-      setSource(file.name); setRows([]); setSelected(""); setHover(null); setProblem(""); setSaved(true);
-      setStatus(counts.size + " unique wallets extracted. Ready to scan.");
-    } catch (e) { setProblem((e as Error).message); }
-  }
-
-  async function save(data: Row[]) {
-    const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: source, month, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
-    if (!r.ok) throw new Error("The scan is downloaded but could not be saved. Use Retry save.");
-    setSaved(true);
-  }
-
-  async function scan() {
-    if (!wallets.length || scanLock.current || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
-    scanLock.current = true; setBusy(true); setProblem(""); setHover(null);
-    const queue = [...wallets], output: Row[] = []; let done = 0;
-    async function get(url: string) {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        await reserveRequest();
-        const response = await fetch(url, { signal: AbortSignal.timeout(25000) });
-        if ((response.status === 429 || response.status >= 500) && attempt < 2) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
-        if (!response.ok) throw new Error("Meteora returned " + response.status);
-        return response.json() as Promise<{ data_points?: Day[]; avg_invested_usd?: string; pnl_usd?: string }>;
-      }
-    }
-    async function worker() {
-      while (queue.length) {
-        const wallet = queue.shift()!;
-        try {
-          const base = "https://portfolio.datapi.meteora.ag", a = encodeURIComponent(wallet.address);
-          const [p, c] = await Promise.all([get(base + "/performances/" + a + "?time_range=30d"), get(base + "/chart/calendar/" + a + "?month=" + month)]);
-          if (!c || !p || !Array.isArray(c.data_points) || p.avg_invested_usd === undefined) throw new Error("Incomplete API response");
-          const calendar: Day[] = c.data_points;
-          const days = calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today);
-          const valid = days.length > 0 && days.every(d => number(d.pnl_usd) !== null);
-          const pnl = days.map(d => Number(d.pnl_usd));
-          output.push({ ...wallet, avgInvested: number(p.avg_invested_usd), pnl30d: number(p.pnl_usd),
-            activeDays: valid ? days.filter(d => [d.pnl_usd, d.deposit_usd, d.withdrawn_usd, d.fees_earned_usd, d.closed_position_count].some(v => (number(v) || 0) !== 0)).length : null,
-            maxLoss: valid ? Math.max(0, ...pnl.map(v => -v)) : null, monthlyProfit: valid ? pnl.reduce((a, b) => a + b, 0) : null, calendar });
-        } catch (e) { output.push({ ...wallet, avgInvested: null, pnl30d: null, activeDays: null, maxLoss: null, monthlyProfit: null, calendar: [], error: (e as Error).message }); }
-        done++; setStatus("Downloading " + done + " / " + wallets.length + " wallets");
-      }
-    }
-    try {
-      await Promise.all(Array.from({ length: Math.min(12, wallets.length) }, worker));
-      setRows(output); setSaved(false); setStatus("Saving scan…"); await save(output);
-      const errors = output.filter(r => r.error).length;
-      setStatus("Saved " + output.length + " wallets" + (errors ? " · " + errors + " unavailable" : "") + " · Filters use downloaded data");
-    } catch (e) { setProblem((e as Error).message); setStatus("Download complete."); }
-    finally { scanLock.current = false; setBusy(false); }
-  }
-
-  async function bookmark(address: string) {
-    if (bookmarkPending.has(address)) return;
-    const remove = bookmarks.has(address);
-    setBookmarkPending(prev => new Set(prev).add(address));
-    try {
-      const response = await fetch("/api/bookmarks", { method: remove ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
-      if (!response.ok) throw new Error("Could not update the bookmark.");
-      setBookmarks(prev => { const next = new Set(prev); if (remove) next.delete(address); else next.add(address); return next; });
-      setBookmarkNames(prev => { const next = { ...prev }; delete next[address]; return next; });
-    } catch (e) { setProblem((e as Error).message); }
-    finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
-  }
-
-  function download() {
-    const data = ["address,activities,avg_invested_usd,pnl_30d_usd,active_days,max_daily_loss_usd,monthly_profit_usd", ...shown.map(r => [r.address, r.activities, r.avgInvested, r.pnl30d, r.activeDays, r.maxLoss, r.monthlyProfit].join(","))].join("\n");
-    const url = URL.createObjectURL(new Blob([data], { type: "text/csv" })), a = document.createElement("a"); a.href = url; a.download = "wallets-" + month + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  return <main className="terminal"><Navigation active="screener" />
-    <div className="import-bar" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void upload(e.dataTransfer.files[0]); }}>
-      <div className="source-label"><FileSpreadsheet size={17} /><span title={source}>{source || "No activity CSV loaded"}</span>{wallets.length > 0 && <span className="count-badge">{wallets.length} wallets</span>}</div>
-      <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setRows([]); setSelected(""); setHover(null); setSaved(true); setStatus("Month changed. Download data for the selected month."); } }} /></label>
-        <input ref={fileInput} className="sr-only" type="file" accept=".csv,text/csv" aria-label="Upload activity CSV" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
-        <Button variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
-        <Button disabled={!wallets.length || busy} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
-    </div>
-    <div className="section-tabs"><span className="tab-current">Overview</span><span className="muted">USD</span><span className="status-text" role="status">{status}</span></div>
-    {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
-    <div className="dashboard-content">
-      <LabelControls addresses={shown.map(r => r.address)} disabled={busy} />
-      <div className="overview-label"><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
-      <section className="metrics-strip" aria-label="Selected wallet metrics">
-        <div className="metric-card"><span>Monthly P&L</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong><small>Calendar month · USD</small></div>
-        <div className="metric-card"><span>Profitable days</span><strong>{dayWin === null ? "—" : dayWin.toFixed(1) + "%"}</strong><div className="win-bar"><i style={{ width: (dayWin || 0) + "%" }} /></div><small><b className="positive">{winning} win</b><span> / </span><b className="negative">{losing} loss</b></small></div>
-        <div className="metric-card"><span>Average invested</span><strong>{money(focus?.avgInvested)}</strong><small>Rolling 30 days</small></div>
-        <div className="metric-card"><span>Active days</span><strong>{focus?.activeDays ?? "—"}</strong><small>Activity in the selected month</small></div>
-        <div className="metric-card"><span>Largest daily loss</span><strong className={focus?.maxLoss ? "negative" : ""}>{money(focus?.maxLoss ? -focus.maxLoss : focus?.maxLoss)}</strong><small>Calendar month · USD</small></div>
-      </section>
-      <section className="overview-grid"><div className="performance-panel"><div className="panel-heading"><h2>Performance</h2><Wallet size={17} /></div>
-        <dl><div><dt>30-day P&L</dt><dd className={tone(focus?.pnl30d)}>{money(focus?.pnl30d)}</dd></div><div><dt>CSV activities</dt><dd>{focus?.activities ?? "—"}</dd></div><div><dt>Monthly deposits</dt><dd>{focus ? money(deposits) : "—"}</dd></div><div><dt>Monthly withdrawals</dt><dd>{focus ? money(withdrawn) : "—"}</dd></div><div><dt>Best day</dt><dd className={tone(values.length ? Math.max(...values) : null)}>{values.length ? money(Math.max(...values)) : "—"}</dd></div><div><dt>Worst day</dt><dd className={tone(values.length ? Math.min(...values) : null)}>{values.length ? money(Math.min(...values)) : "—"}</dd></div></dl>
-        <div className="profit-summary"><span>Monthly profit</span><strong className={tone(focus?.monthlyProfit)}>{money(focus?.monthlyProfit)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
-      </div><Calendar row={focus} month={month} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} /></section>
-      {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} close={() => setHistoryDay(null)} />}
-      <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} />
-      <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span></h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
-        <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label, unit]) => <label key={key}>{label}<div className="filter-input"><Input type="number" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{unit}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
-        <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseMove={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>
-          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{money(row.avgInvested)}</td><td className={tone(row.pnl30d)}>{money(row.pnl30d)}</td><td>{row.activeDays ?? "—"}</td><td className={row.maxLoss ? "negative" : ""}>{money(row.maxLoss ? -row.maxLoss : row.maxLoss)}</td><td className={tone(row.monthlyProfit)}>{money(row.monthlyProfit)}</td>
-        </tr>)}{!shown.length && <tr><td colSpan={7} className="empty-table"><FileSpreadsheet size={24} /><strong>{rows.length ? "No wallets match your filters" : "Your wallet scan starts here"}</strong><span>{rows.length ? "Adjust or reset the filters to see more results." : "Import an activity CSV, then scan to load performance and daily P&L."}</span></td></tr>}</tbody></table></div>
-        <footer className="table-footer"><span>{shown.length} of {rows.length} wallets{!saved ? " · Not saved yet" : ""}</span><span>Monthly metrics use UTC calendar days. Avg. invested and 30d P&L use a rolling window.</span></footer>
-      </section>
-    </div>
-    {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={month} compact /></div>}
+    <section className="landing-bottom-cta"><div className="landing-container landing-bottom-inner"><div><span>READY WHEN YOU ARE</span><h2>Make sense of every wallet.</h2><p>Bring your CSV, set your filters, and start exploring.</p></div><a href="/screener">Go to wallet screener <ArrowUpRight size={20} /></a></div></section>
+    <footer className="landing-footer"><div className="landing-container"><a className="landing-brand" href="/"><span className="landing-brand-mark"><Layers3 size={20} strokeWidth={2.6} /></span><span>supir</span></a><span>Wallet research for Meteora on Solana.</span><div><a href="/screener">Screener</a><a href="/bookmarks">Bookmarks</a></div></div></footer>
   </main>;
 }
