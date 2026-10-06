@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext navigation currently needs native anchors here. */
 
-import { Copy, Star, Check, Layers3 } from "lucide-react";
+import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { WalletPills } from './wallet-labels';
 
@@ -26,6 +26,11 @@ export const largestLoss = (row: Row | null, month: string, currency: Currency) 
 };
 export const tone = (v: number | null | undefined) => v == null || v === 0 ? "" : v > 0 ? "positive" : "negative";
 export const monthName = (month: string) => new Date(month + "-01T12:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+export const shiftMonth = (month: string, offset: number) => {
+  const [year, index] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, index - 1 + offset, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+};
 
 export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
   return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
@@ -37,14 +42,14 @@ export function WalletAddress({ address, name, marked, pending, onBookmark, onEr
   return <div className="wallet-address" onClick={e => e.stopPropagation()}>{name && <span className="wallet-alias" title={name}>{name}</span>}<a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button><WalletPills address={address} /></div>;
 }
 
-export function Calendar({ row, month, currency = "USD", compact = false, onDateClick }: { row: Row | null; month: string; currency?: Currency; compact?: boolean; onDateClick?: (date: string) => void }) {
+export function Calendar({ row, month, currency = "USD", compact = false, onDateClick, onMonthChange }: { row: Row | null; month: string; currency?: Currency; compact?: boolean; onDateClick?: (date: string) => void; onMonthChange?: (month: string) => void }) {
   const start = new Date(month + "-01T12:00:00Z");
   const length = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
   const offset = start.getUTCDay();
   const map = new Map(row?.calendar.filter(d => d.date_time.startsWith(month)).map(d => [Number(d.date_time.slice(8, 10)), d]));
   const today = new Date().toISOString().slice(0, 10);
   const monthly = monthPnl(row, month, currency);
-  return <section className={`calendar-panel ${compact ? "compact-calendar" : ""} ${currency === "SOL" ? "sol-calendar" : ""}`} aria-label="Daily profit calendar"><div className="panel-heading"><h2>{compact ? "Daily P&L" : "Monthly P&L"}</h2><span className="currency-tag">{currency}</span></div><div className="calendar-meta"><strong>{monthName(month)}</strong><span>Monthly total <b className={tone(monthly)}>{amount(monthly, currency)}</b></span></div><div className="calendar-weekdays">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{Array.from({ length: Math.ceil((offset + length) / 7) * 7 }, (_, i) => {
+  return <section className={`calendar-panel ${compact ? "compact-calendar" : ""} ${currency === "SOL" ? "sol-calendar" : ""}`} aria-label="Daily profit calendar"><div className="panel-heading"><h2>{compact ? "Daily P&L" : "Monthly P&L"}</h2><span className="currency-tag">{currency}</span></div><div className="calendar-meta"><div className="calendar-month-nav">{!compact && onMonthChange && <button type="button" aria-label="Previous month" title="Previous month" onClick={() => onMonthChange(shiftMonth(month, -1))}><ChevronLeft size={18} /></button>}<strong>{monthName(month)}</strong>{!compact && onMonthChange && <><button type="button" aria-label="Next month" title="Next month" disabled={month >= new Date().toISOString().slice(0, 7)} onClick={() => onMonthChange(shiftMonth(month, 1))}><ChevronRight size={18} /></button><button type="button" className="this-month-button" onClick={() => onMonthChange(new Date().toISOString().slice(0, 7))}>This month</button></>}</div><span>Monthly total <b className={tone(monthly)}>{amount(monthly, currency)}</b></span></div><div className="calendar-weekdays">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{Array.from({ length: Math.ceil((offset + length) / 7) * 7 }, (_, i) => {
     const day = i - offset + 1, inMonth = day >= 1 && day <= length;
     const date = `${month}-${String(day).padStart(2, "0")}`;
     const record = inMonth && date <= today ? map.get(day) : undefined;

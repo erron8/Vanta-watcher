@@ -35,6 +35,9 @@ export default function Home() {
   const [wallets, setWallets] = useState<{ address: string; activities: number }[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [scanMonth, setScanMonth] = useState("");
+  const [monthCache, setMonthCache] = useState<Record<string, Day[]>>({});
+  const [monthErrors, setMonthErrors] = useState<Record<string, string>>({});
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("Loading saved scan…");
   const [problem, setProblem] = useState("");
@@ -57,7 +60,7 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/scans").then(async r => { if (!r.ok) throw new Error("Could not load the saved scan."); return r.json() as Promise<{ scan: { month: string; sourceName: string; walletCount: number; createdAt: string } | null; rows: Row[] }>; }).then(data => {
       if (data.scan) {
-        setRows(data.rows); setMonth(data.scan.month); setSource(data.scan.sourceName);
+        setRows(data.rows); setMonth(data.scan.month); setScanMonth(data.scan.month); setSource(data.scan.sourceName);
         setWallets(data.rows.map((r: Row) => ({ address: r.address, activities: r.activities })));
         setStatus(data.scan.walletCount + " wallets · Saved " + new Date(data.scan.createdAt).toLocaleString());
       } else setStatus("Upload an activity CSV to start.");
@@ -76,8 +79,8 @@ export default function Home() {
     const metric = (r: Row, key: Sort): number | string | null => {
       if (key === "avgInvested") return currency === "USD" ? r.avgInvested : r.avgInvestedSol ?? null;
       if (key === "pnl30d") return currency === "USD" ? r.pnl30d : r.pnl30dSol ?? null;
-      if (key === "maxLoss") return largestLoss(r, month, currency);
-      if (key === "monthlyProfit") return monthPnl(r, month, currency);
+      if (key === "maxLoss") return largestLoss(r, scanMonth, currency);
+      if (key === "monthlyProfit") return monthPnl(r, scanMonth, currency);
       return r[key];
     };
     return rows.filter(r => {
@@ -93,20 +96,42 @@ export default function Home() {
     if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
     return (typeof x === "string" ? x.localeCompare(String(y)) : x - Number(y)) * direction;
   });
-  }, [rows, filters, sort, direction, currency, month]);
+  }, [rows, filters, sort, direction, currency, scanMonth]);
 
-  const focus = shown.find(r => r.address === selected) || shown[0] || null;
+  const focus = rows.find(r => r.address === selected) || shown[0] || null;
+  const focusAddress = focus?.address || "";
+  const cacheKey = `${focusAddress}:${month}`;
+  useEffect(() => {
+    if (!focusAddress || month === scanMonth || monthCache[cacheKey] || monthErrors[cacheKey]) return;
+    const controller = new AbortController();
+    fetch(`/api/calendar?address=${encodeURIComponent(focusAddress)}&month=${month}`, { signal: controller.signal })
+      .then(async response => { const data = await response.json() as { days?: Day[]; error?: string }; if (!response.ok || !Array.isArray(data.days)) throw new Error(data.error || "Could not load this month."); return data.days; })
+      .then(days => { if (!controller.signal.aborted) setMonthCache(previous => ({ ...previous, [cacheKey]: days })); })
+      .catch(error => { if (!controller.signal.aborted) setMonthErrors(previous => ({ ...previous, [cacheKey]: (error as Error).message })); });
+    return () => controller.abort();
+  }, [focusAddress, month, scanMonth, cacheKey, monthCache, monthErrors]);
+  const monthError = monthErrors[cacheKey];
+  const monthLoading = !!focusAddress && month !== scanMonth && !monthCache[cacheKey] && !monthError;
+  const focusDays = month === scanMonth ? focus?.calendar : monthCache[cacheKey];
+  const focusMonth = focus ? month === scanMonth ? focus : (() => {
+    const days = (focusDays || []).filter(day => day.date_time.startsWith(month) && day.date_time.slice(0, 10) <= new Date().toISOString().slice(0, 10));
+    const pnl = days.map(day => number(day.pnl_usd));
+    const valid = !!focusDays && days.length > 0 && pnl.every(value => value !== null);
+    return { ...focus, calendar: focusDays || [], monthlyProfit: valid ? pnl.reduce((sum, value) => sum + value!, 0) : null,
+      maxLoss: valid ? Math.max(0, ...pnl.map(value => -value!)) : null,
+      activeDays: valid ? days.filter(day => [day.pnl_usd, day.deposit_usd, day.withdrawn_usd, day.fees_earned_usd, day.closed_position_count].some(value => (number(value) || 0) !== 0)).length : null };
+  })() : null;
   const failed = rows.filter(r => r.error).length;
   const today = new Date().toISOString().slice(0, 10);
-  const daily = focus?.calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today) || [];
+  const daily = focusMonth?.calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today) || [];
   const winning = daily.filter(d => (dayPnl(d, currency) ?? 0) > 0).length;
   const losing = daily.filter(d => (dayPnl(d, currency) ?? 0) < 0).length;
   const dayWin = winning + losing ? winning / (winning + losing) * 100 : null;
   const values = daily.map(d => dayPnl(d, currency)).filter((n): n is number => n !== null);
   const deposits = daily.length && daily.every(d => number(currency === "USD" ? d.deposit_usd : d.deposit_sol) !== null) ? daily.reduce((s, d) => s + Number(currency === "USD" ? d.deposit_usd : d.deposit_sol), 0) : null;
   const withdrawn = daily.length && daily.every(d => number(currency === "USD" ? d.withdrawn_usd : d.withdrawn_sol) !== null) ? daily.reduce((s, d) => s + Number(currency === "USD" ? d.withdrawn_usd : d.withdrawn_sol), 0) : null;
-  const monthly = monthPnl(focus, month, currency);
-  const loss = largestLoss(focus, month, currency);
+  const monthly = monthPnl(focusMonth, month, currency);
+  const loss = largestLoss(focusMonth, month, currency);
   const invested = currency === "USD" ? focus?.avgInvested : focus?.avgInvestedSol;
   const pnl30d = currency === "USD" ? focus?.pnl30d : focus?.pnl30dSol;
   const displaySource = source.toLowerCase().endsWith(".csv") ? "Imported wallet scan" : source;
@@ -132,7 +157,7 @@ export default function Home() {
         } catch { /* A shortened mint still identifies the pool when metadata is unavailable. */ }
       }
       setWallets([...counts].map(([address, activities]) => ({ address, activities })));
-      setSource(label); setRows([]); setSelected(""); setHover(null); setProblem(""); setSaved(true);
+      setSource(label); setRows([]); setSelected(""); setMonthCache({}); setMonthErrors({}); setScanMonth(""); setHover(null); setProblem(""); setSaved(true);
       setStatus(counts.size + " unique wallets extracted. Ready to scan.");
     } catch (e) { setProblem((e as Error).message); }
     finally { setResolvingPool(false); }
@@ -177,7 +202,7 @@ export default function Home() {
     }
     try {
       await Promise.all(Array.from({ length: Math.min(12, wallets.length) }, worker));
-      setRows(output); setSaved(false); setStatus("Saving scan…"); await save(output);
+      setRows(output); setScanMonth(month); setMonthCache({}); setMonthErrors({}); setSaved(false); setStatus("Saving scan…"); await save(output);
       const errors = output.filter(r => r.error).length;
       setStatus("Saved " + output.length + " wallets" + (errors ? " · " + errors + " unavailable" : "") + " · Filters use downloaded data");
     } catch (e) { setProblem((e as Error).message); setStatus("Download complete."); }
@@ -198,14 +223,14 @@ export default function Home() {
   }
 
   function download() {
-    const data = ["address,activities,avg_invested_usd,avg_invested_sol,pnl_30d_usd,pnl_30d_sol,active_days,max_daily_loss_usd,max_daily_loss_sol,monthly_profit_usd,monthly_profit_sol", ...shown.map(r => [r.address, r.activities, r.avgInvested, r.avgInvestedSol ?? "", r.pnl30d, r.pnl30dSol ?? "", r.activeDays, r.maxLoss, largestLoss(r, month, "SOL") ?? "", r.monthlyProfit, monthPnl(r, month, "SOL") ?? ""].join(","))].join("\n");
-    const url = URL.createObjectURL(new Blob([data], { type: "text/csv" })), a = document.createElement("a"); a.href = url; a.download = "wallets-" + month + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const data = ["address,activities,avg_invested_usd,avg_invested_sol,pnl_30d_usd,pnl_30d_sol,active_days,max_daily_loss_usd,max_daily_loss_sol,monthly_profit_usd,monthly_profit_sol", ...shown.map(r => [r.address, r.activities, r.avgInvested, r.avgInvestedSol ?? "", r.pnl30d, r.pnl30dSol ?? "", r.activeDays, r.maxLoss, largestLoss(r, scanMonth, "SOL") ?? "", r.monthlyProfit, monthPnl(r, scanMonth, "SOL") ?? ""].join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob([data], { type: "text/csv" })), a = document.createElement("a"); a.href = url; a.download = "wallets-" + scanMonth + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return <main className="terminal"><Navigation active="screener" />
     <div className="import-bar" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void upload(e.dataTransfer.files[0]); }}>
       <div className="source-label"><FileSpreadsheet size={17} /><span title={displaySource}>{displaySource || "No activity CSV loaded"}</span>{wallets.length > 0 && <span className="count-badge">{wallets.length} wallets</span>}</div>
-      <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setRows([]); setSelected(""); setHover(null); setSaved(true); setStatus("Month changed. Download data for the selected month."); } }} /></label>
+      <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} max={new Date().toISOString().slice(0, 7)} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setHover(null); } }} /></label>
         <input ref={fileInput} className="sr-only" type="file" accept=".csv,text/csv" aria-label="Upload activity CSV" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
         <Button variant="outline" disabled={busy || resolvingPool} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
         <Button disabled={!wallets.length || busy || resolvingPool} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
@@ -219,23 +244,23 @@ export default function Home() {
         <div className="metric-card"><span>Monthly P&L</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong><small>Calendar month · {currency}</small></div>
         <div className="metric-card"><span>Profitable days</span><strong>{dayWin === null ? "—" : dayWin.toFixed(1) + "%"}</strong><div className="win-bar"><i style={{ width: (dayWin || 0) + "%" }} /></div><small><b className="positive">{winning} win</b><span> / </span><b className="negative">{losing} loss</b></small></div>
         <div className="metric-card"><span>Average invested</span><strong>{amount(invested, currency)}</strong><small>Rolling 30 days</small></div>
-        <div className="metric-card"><span>Active days</span><strong>{focus?.activeDays ?? "—"}</strong><small>Activity in the selected month</small></div>
+        <div className="metric-card"><span>Active days</span><strong>{focusMonth?.activeDays ?? "—"}</strong><small>Activity in the selected month</small></div>
         <div className="metric-card"><span>Largest daily loss</span><strong className={loss ? "negative" : ""}>{amount(loss ? -loss : loss, currency)}</strong><small>Calendar month · {currency}</small></div>
       </section>
       <section className="overview-grid"><div className="performance-panel"><div className="panel-heading"><h2>Performance</h2><Wallet size={17} /></div>
         <dl><div><dt>30-day P&L</dt><dd className={tone(pnl30d)}>{amount(pnl30d, currency)}</dd></div><div><dt>CSV activities</dt><dd>{focus?.activities ?? "—"}</dd></div><div><dt>Monthly deposits</dt><dd>{focus ? amount(deposits, currency) : "—"}</dd></div><div><dt>Monthly withdrawals</dt><dd>{focus ? amount(withdrawn, currency) : "—"}</dd></div><div><dt>Best day</dt><dd className={tone(values.length ? Math.max(...values) : null)}>{values.length ? amount(Math.max(...values), currency) : "—"}</dd></div><div><dt>Worst day</dt><dd className={tone(values.length ? Math.min(...values) : null)}>{values.length ? amount(Math.min(...values), currency) : "—"}</dd></div></dl>
         <div className="profit-summary"><span>Monthly profit</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
-      </div><Calendar row={focus} month={month} currency={currency} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} /></section>
+      </div><div><Calendar row={focusMonth} month={month} currency={currency} onMonthChange={next => { setMonth(next); setHover(null); }} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} />{monthLoading && <p className="calendar-fetch-status" role="status">Loading {monthName(month)} for this wallet…</p>}{monthError && <p className="calendar-fetch-status negative" role="alert">{monthError} <button type="button" onClick={() => setMonthErrors(previous => { const next = { ...previous }; delete next[cacheKey]; return next; })}>Retry</button></p>}</div></section>
       {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} currency={currency} close={() => setHistoryDay(null)} />}
       <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} />
-      <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span></h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
+      <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span>{scanMonth && <small className="table-scan-month">{monthName(scanMonth)} scan</small>}</h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
         <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label]) => <label key={key}>{label}<div className="filter-input"><Input type="number" step="any" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{key === "days" ? "Days" : currency}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
         <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseMove={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>
-          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{amount(currency === "USD" ? row.avgInvested : row.avgInvestedSol, currency)}</td><td className={tone(currency === "USD" ? row.pnl30d : row.pnl30dSol)}>{amount(currency === "USD" ? row.pnl30d : row.pnl30dSol, currency)}</td><td>{row.activeDays ?? "—"}</td><td className={largestLoss(row, month, currency) ? "negative" : ""}>{amount(largestLoss(row, month, currency) ? -largestLoss(row, month, currency)! : largestLoss(row, month, currency), currency)}</td><td className={tone(monthPnl(row, month, currency))}>{amount(monthPnl(row, month, currency), currency)}</td>
+          <td><WalletAddress address={row.address} name={bookmarkNames[row.address]} marked={bookmarks.has(row.address)} pending={bookmarkPending.has(row.address)} onBookmark={() => bookmark(row.address)} onError={setProblem} /></td><td>{row.activities}</td><td>{amount(currency === "USD" ? row.avgInvested : row.avgInvestedSol, currency)}</td><td className={tone(currency === "USD" ? row.pnl30d : row.pnl30dSol)}>{amount(currency === "USD" ? row.pnl30d : row.pnl30dSol, currency)}</td><td>{row.activeDays ?? "—"}</td><td className={largestLoss(row, scanMonth, currency) ? "negative" : ""}>{amount(largestLoss(row, scanMonth, currency) ? -largestLoss(row, scanMonth, currency)! : largestLoss(row, scanMonth, currency), currency)}</td><td className={tone(monthPnl(row, scanMonth, currency))}>{amount(monthPnl(row, scanMonth, currency), currency)}</td>
         </tr>)}{!shown.length && <tr><td colSpan={7} className="empty-table"><FileSpreadsheet size={24} /><strong>{rows.length ? "No wallets match your filters" : "Your wallet scan starts here"}</strong><span>{rows.length ? "Adjust or reset the filters to see more results." : "Import an activity CSV, then scan to load performance and daily P&L."}</span></td></tr>}</tbody></table></div>
         <footer className="table-footer"><span>{shown.length} of {rows.length} wallets{!saved ? " · Not saved yet" : ""}</span><span>Monthly metrics use UTC calendar days. Avg. invested and 30d P&L use a rolling window. Missing SOL figures require a refreshed scan.</span></footer>
       </section>
     </div>
-    {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={month} currency={currency} compact /></div>}
+    {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={scanMonth || month} currency={currency} compact /></div>}
   </main>;
 }
