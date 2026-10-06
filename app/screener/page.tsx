@@ -60,11 +60,12 @@ export default function Home() {
   const [currency, setCurrency] = useState<Currency>("USD");
   const fileInput = useRef<HTMLInputElement>(null);
   const scanLock = useRef(false);
+  const importStarted = useRef(false);
 
   useEffect(() => {
     let active = true;
     const applyScan = (data: SavedScan) => {
-      if (!active) return;
+      if (!active || importStarted.current) return;
       recentScan = data;
       if (data.scan) {
         setRows(data.rows); setMonth(data.scan.month); setScanMonth(data.scan.month); setSource(data.scan.sourceName);
@@ -75,8 +76,7 @@ export default function Home() {
     const cached = readSessionCache<SavedScan>(scanCacheKey);
     if (cached?.scan) Promise.resolve().then(() => applyScan(cached));
     fetch("/api/scans").then(async r => { if (!r.ok) throw new Error("Could not load the saved scan."); return r.json() as Promise<SavedScan>; }).then(data => {
-      applyScan(data);
-      writeSessionCache(scanCacheKey, data);
+      if (!importStarted.current) { applyScan(data); writeSessionCache(scanCacheKey, data); }
     }).catch(e => { if (active && !recentScan?.scan) { setProblem(e.message); setStatus("Saved scan unavailable."); } });
     fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string }[]>; })
       .then(data => { setBookmarks(new Set(data.map(r => r.address))); setBookmarkNames(Object.fromEntries(data.map(r => [r.address, r.name]))); }).catch(e => setProblem(e.message));
@@ -162,6 +162,7 @@ export default function Home() {
       data.slice(1).forEach(r => { const address = (r[index] || "").trim(); if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) counts.set(address, (counts.get(address) || 0) + 1); });
       if (!counts.size) throw new Error("No valid wallet addresses found.");
       if (counts.size > 2000) throw new Error("Use a CSV with up to 2,000 unique wallets.");
+      importStarted.current = true;
       const pool = primaryPool(data);
       let label = pool ? `${shortToken(pool.base)}-${shortToken(pool.quote)}` : "Imported wallet scan";
       if (pool && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pool.base) && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pool.quote)) {
@@ -172,15 +173,17 @@ export default function Home() {
           if (response.ok) label = ((await response.json()) as { label: string }).label || label;
         } catch { /* A shortened mint still identifies the pool when metadata is unavailable. */ }
       }
-      setWallets([...counts].map(([address, activities]) => ({ address, activities })));
+      const importedWallets = [...counts].map(([address, activities]) => ({ address, activities }));
+      setWallets(importedWallets);
       recentScan = null; clearSessionCache(scanCacheKey); setSource(label); setRows([]); setSelected(""); setMonthCache({}); setMonthErrors({}); setScanMonth(""); setHover(null); setProblem(""); setSaved(true);
-      setStatus(counts.size + " unique wallets extracted. Ready to scan.");
-    } catch (e) { setProblem((e as Error).message); }
+      setStatus(counts.size + " unique wallets extracted. Starting scan…");
+      await scan(importedWallets, month, label);
+    } catch (e) { importStarted.current = false; setProblem((e as Error).message); }
     finally { setResolvingPool(false); }
   }
 
-  async function save(data: Row[]) {
-    const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: displaySource, month, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
+  async function save(data: Row[], scannedMonth = month, scannedSource = displaySource) {
+    const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: scannedSource, month: scannedMonth, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
     if (!r.ok) throw new Error("The scan is downloaded but could not be saved. Use Retry save.");
     const result = await r.json() as { scan: NonNullable<SavedScan["scan"]> };
     recentScan = { scan: result.scan, rows: data };
@@ -188,10 +191,10 @@ export default function Home() {
     setSaved(true);
   }
 
-  async function scan() {
-    if (!wallets.length || scanLock.current || resolvingPool || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
+  async function scan(targetWallets = wallets, targetMonth = month, targetSource = displaySource) {
+    if (!targetWallets.length || scanLock.current || !/^\d{4}-(0[1-9]|1[0-2])$/.test(targetMonth)) return;
     scanLock.current = true; setBusy(true); setProblem(""); setHover(null);
-    const queue = [...wallets], output: Row[] = []; let done = 0;
+    const queue = [...targetWallets], output: Row[] = []; let done = 0;
     async function get(url: string) {
       for (let attempt = 0; attempt < 3; attempt++) {
         await reserveRequest();
@@ -206,22 +209,22 @@ export default function Home() {
         const wallet = queue.shift()!;
         try {
           const base = "https://portfolio.datapi.meteora.ag", a = encodeURIComponent(wallet.address);
-          const [p, c] = await Promise.all([get(base + "/performances/" + a + "?time_range=30d"), get(base + "/chart/calendar/" + a + "?month=" + month)]);
+          const [p, c] = await Promise.all([get(base + "/performances/" + a + "?time_range=30d"), get(base + "/chart/calendar/" + a + "?month=" + targetMonth)]);
           if (!c || !p || !Array.isArray(c.data_points) || p.avg_invested_usd === undefined) throw new Error("Incomplete API response");
           const calendar: Day[] = c.data_points;
-          const days = calendar.filter(d => d.date_time.startsWith(month) && d.date_time.slice(0, 10) <= today);
+          const days = calendar.filter(d => d.date_time.startsWith(targetMonth) && d.date_time.slice(0, 10) <= today);
           const valid = days.length > 0 && days.every(d => number(d.pnl_usd) !== null);
           const pnl = days.map(d => Number(d.pnl_usd));
           output.push({ ...wallet, avgInvested: number(p.avg_invested_usd), avgInvestedSol: number(p.avg_invested_sol), pnl30d: number(p.pnl_usd), pnl30dSol: number(p.pnl_sol),
             activeDays: valid ? days.filter(d => [d.pnl_usd, d.deposit_usd, d.withdrawn_usd, d.fees_earned_usd, d.closed_position_count].some(v => (number(v) || 0) !== 0)).length : null,
             maxLoss: valid ? Math.max(0, ...pnl.map(v => -v)) : null, monthlyProfit: valid ? pnl.reduce((a, b) => a + b, 0) : null, calendar });
         } catch (e) { output.push({ ...wallet, avgInvested: null, avgInvestedSol: null, pnl30d: null, pnl30dSol: null, activeDays: null, maxLoss: null, monthlyProfit: null, calendar: [], error: (e as Error).message }); }
-        done++; setStatus("Downloading " + done + " / " + wallets.length + " wallets");
+        done++; setStatus("Downloading " + done + " / " + targetWallets.length + " wallets");
       }
     }
     try {
-      await Promise.all(Array.from({ length: Math.min(12, wallets.length) }, worker));
-      setRows(output); setScanMonth(month); setMonthCache({}); setMonthErrors({}); setSaved(false); setStatus("Saving scan…"); await save(output);
+      await Promise.all(Array.from({ length: Math.min(12, targetWallets.length) }, worker));
+      setRows(output); setScanMonth(targetMonth); setMonthCache({}); setMonthErrors({}); setSaved(false); setStatus("Saving scan…"); await save(output, targetMonth, targetSource);
       const errors = output.filter(r => r.error).length;
       setStatus("Saved " + output.length + " wallets" + (errors ? " · " + errors + " unavailable" : "") + " · Filters use downloaded data");
     } catch (e) { setProblem((e as Error).message); setStatus("Download complete."); }
@@ -253,7 +256,7 @@ export default function Home() {
       <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} max={new Date().toISOString().slice(0, 7)} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setHover(null); } }} /></label>
         <input ref={fileInput} className="sr-only" type="file" accept=".csv,text/csv" aria-label="Upload activity CSV" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
         <Button variant="outline" disabled={busy || resolvingPool} onClick={() => fileInput.current?.click()}><Upload size={15} />Import CSV</Button>
-        <Button disabled={!wallets.length || busy || resolvingPool} onClick={scan}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : rows.length ? "Refresh scan" : "Scan wallets"}</Button></div>
+        <Button disabled={!wallets.length || busy || resolvingPool} onClick={() => { void scan(); }}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : "Refresh scan"}</Button></div>
     </div>
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
     {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
