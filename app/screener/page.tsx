@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadsheet, Loader2, RotateCcw, SlidersHorizontal, Upload, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadsheet, Loader2, RotateCcw, Search, SlidersHorizontal, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Navigation, WalletAddress, amount, dayPnl, largestLoss, monthPnl, number, tone, monthName, type Currency, type Row, type Day } from "../screener-ui";
@@ -10,6 +10,7 @@ import { reserveRequest } from "@/lib/history";
 import { LabelControls } from '../wallet-labels';
 import { primaryPool, shortToken } from "@/lib/pool-label";
 import { clearSessionCache, readSessionCache, writeSessionCache } from "@/lib/session-cache";
+import { isSolanaAddress } from "@/lib/solana-address";
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
@@ -58,6 +59,7 @@ export default function Home() {
   const [direction, setDirection] = useState(-1);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [currency, setCurrency] = useState<Currency>("USD");
+  const [poolAddress, setPoolAddress] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const scanLock = useRef(false);
   const importStarted = useRef(false);
@@ -250,8 +252,21 @@ export default function Home() {
     const url = URL.createObjectURL(new Blob([data], { type: "text/csv" })), a = document.createElement("a"); a.href = url; a.download = "wallets-" + scanMonth + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function openPoolOnSolscan() {
+    const address = poolAddress.trim();
+    if (!isSolanaAddress(address)) { setProblem("Enter a valid Solana pool address."); return; }
+    setProblem("");
+    const query = new URLSearchParams({ activity_type: "ACTIVITY_TOKEN_ADD_LIQ,ACTIVITY_TOKEN_DEPOSIT_VAULT", page_size: "10" });
+    window.open(`https://solscan.io/account/${address}?${query}#activities`, "_blank", "noopener,noreferrer");
+  }
+
   return <main className="terminal"><Navigation active="screener" />
     <div className="import-bar" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void upload(e.dataTransfer.files[0]); }}>
+      <form className="pool-search-field" onSubmit={e => { e.preventDefault(); openPoolOnSolscan(); }}>
+        <Search size={17} aria-hidden="true" />
+        <input aria-label="Meteora pool address" placeholder="Paste a Meteora pool address" value={poolAddress} onChange={e => setPoolAddress(e.target.value)} />
+        <button type="submit">Enter ↗</button>
+      </form>
       <div className="source-label"><FileSpreadsheet size={17} /><span title={displaySource}>{displaySource || "No activity CSV loaded"}</span>{wallets.length > 0 && <span className="count-badge">{wallets.length} wallets</span>}</div>
       <div className="toolbar-actions"><label className="month-control"><CalendarDays size={16} /><input type="month" aria-label="Calendar month" value={month} max={new Date().toISOString().slice(0, 7)} disabled={busy} onChange={e => { if (e.target.value) { setMonth(e.target.value); setHover(null); } }} /></label>
         <input ref={fileInput} className="sr-only" type="file" accept=".csv,text/csv" aria-label="Upload activity CSV" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />

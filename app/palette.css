@@ -136,3 +136,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .terminal [data-slot="button"][data-variant="outline"]:hover { background: #e5d5c3; }
 .terminal [data-slot="input"] { background-color: #f9f3eb; border-color: #bfa98f; color: #22333b; }
 .terminal [data-slot="input"]::placeholder { color: #786957; }
+
+.import-bar { flex-wrap: wrap; }
+.pool-search-field { flex: 1 1 300px; max-width: 500px; min-width: 240px; height: 38px; display: flex; align-items: center; gap: 9px; padding: 0 5px 0 12px; border: 1px solid #bfa98f; border-radius: 7px; background: #f9f3eb; color: #685a4b; }
+.pool-search-field:focus-within { border-color: #5e503f; box-shadow: 0 0 0 2px #c6ac8f55; }
+.pool-search-field input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: #22333b; font: inherit; font-size: 13px; }
+.pool-search-field input::placeholder { color: #786957; }
+.pool-search-field button { height: 28px; padding: 0 11px; border: 0; border-radius: 5px; background: #22333b; color: #f5eee6; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.pool-search-field button:hover { background: #0a0908; }
+.import-bar > .source-label { width: auto; margin-left: auto; }
+.import-bar > .source-label > span:first-of-type { max-width: 200px; }
+@media (max-width: 1000px) { .pool-search-field { max-width: none; } .import-bar > .source-label { order: 3; width: 100%; margin-left: 0; } }
+@media (max-width: 650px) { .pool-search-field { flex-basis: 100%; min-width: 0; } .import-bar > .toolbar-actions { width: 100%; flex-shrink: 1; } }
