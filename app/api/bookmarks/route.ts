@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { isSolanaAddress } from "@/lib/solana-address";
 
 export async function GET() {
   if (!env.DB) return Response.json({ error: "Database unavailable" }, { status: 503 });
@@ -8,10 +9,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!env.DB) return Response.json({ error: "Database unavailable" }, { status: 503 });
-  const { address } = await request.json() as { address?: string };
-  if (!address || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return Response.json({ error: "Invalid address" }, { status: 400 });
-  await env.DB.prepare("INSERT OR IGNORE INTO bookmarks (address, created_at) VALUES (?, ?)").bind(address, new Date().toISOString()).run();
-  return Response.json({ address }, { status: 201 });
+  let address: unknown;
+  try { ({ address } = await request.json() as { address?: unknown }); } catch { return Response.json({ error: "Enter a Solana wallet address." }, { status: 400 }); }
+  if (typeof address !== "string" || !isSolanaAddress(address)) return Response.json({ error: "Enter a valid Solana wallet address." }, { status: 400 });
+  try {
+    const createdAt = new Date().toISOString();
+    const result = await env.DB.prepare("INSERT OR IGNORE INTO bookmarks (address, created_at) VALUES (?, ?)").bind(address, createdAt).run();
+    const row = await env.DB.prepare("SELECT address, name, created_at AS createdAt FROM bookmarks WHERE address = ?").bind(address).first();
+    return Response.json({ ...row, created: result.meta.changes > 0 }, { status: result.meta.changes > 0 ? 201 : 200 });
+  } catch { return Response.json({ error: "Could not save the wallet. Please retry." }, { status: 503 }); }
 }
 
 export async function DELETE(request: Request) {

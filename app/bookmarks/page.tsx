@@ -4,7 +4,8 @@ import { Navigation, WalletAddress } from "../screener-ui";
 import { LabelControls } from '../wallet-labels';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
+import { isSolanaAddress } from '@/lib/solana-address';
 
 export default function Bookmarks() {
   const [rows, setRows] = useState<{ address: string; name: string; createdAt: string }[]>([]);
@@ -14,10 +15,27 @@ export default function Bookmarks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [newAddress, setNewAddress] = useState('');
+  const [adding, setAdding] = useState(false);
   useEffect(() => {
     fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string; createdAt: string }[]>; })
       .then(setRows).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
+  async function addWallet() {
+    const address = newAddress.trim();
+    setError(''); setNotice('');
+    if (!isSolanaAddress(address)) { setError('Enter a valid Solana wallet address.'); return; }
+    setAdding(true);
+    try {
+      const response = await fetch('/api/bookmarks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
+      const data = await response.json() as { address?: string; name?: string; createdAt?: string; created?: boolean; error?: string };
+      if (!response.ok || !data.address || !data.createdAt) throw new Error(data.error || 'Could not save the wallet. Please retry.');
+      setRows(prev => [{ address: data.address!, name: data.name || '', createdAt: data.createdAt! }, ...prev.filter(row => row.address !== data.address)]);
+      setNewAddress('');
+      setNotice(data.created ? 'Wallet added to bookmarks.' : 'This wallet was already bookmarked.');
+    } catch (e) { setError((e as Error).message); }
+    finally { setAdding(false); }
+  }
   async function rename(address: string) {
     if (pending) return;
     setPending(address); setError(''); setNotice('');
@@ -41,6 +59,7 @@ export default function Bookmarks() {
   }
   return <main className="terminal"><Navigation active="bookmarks" /><div className="bookmarks-content">
     <div className="bookmarks-heading"><h1>Bookmarked wallets</h1><span className="count-badge">{rows.length}</span></div>
+    <form className="bookmark-add" onSubmit={e => { e.preventDefault(); void addWallet(); }}><label htmlFor="new-wallet-address">Add a Solana wallet</label><div><Input id="new-wallet-address" name="walletAddress" value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="Paste a Solana wallet address" autoComplete="off" spellCheck={false} disabled={adding} /><Button type="submit" disabled={adding || !newAddress.trim()}><Plus size={15} />{adding ? 'Adding…' : 'Add wallet'}</Button></div></form>
     {error && <p className="error-banner" role="alert">{error}</p>}
     <p className="bookmark-notice" role="status">{notice}</p>
     <LabelControls addresses={rows.map(r => r.address)} />
