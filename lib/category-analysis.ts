@@ -1,23 +1,23 @@
 import type { Match } from './history';
-import { emptyCategories, type BookmarkCategories } from './bookmark-categories';
+import { emptyCategories, type BookmarkCategories } from './bookmark-categories.ts';
 
 const quoteMints = new Set(['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v']);
 const numeric = (value: unknown) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value) : null;
 
 export type CategoryEvidence = {
   positions: number;
-  deposits: { quoteOnly: number; doubleSided: number; nonQuoteOnly: number; unknown: number };
+  deposits: { quoteOnly: number; doubleSided: number; baseOnly: number; unknown: number };
   averageHoldSeconds: number | null;
   averageBins: number | null;
   openingSessions: { Asia: number; London: number; NYC: number };
 };
 
-export function suggestCategories(positions: Match[], nonQuoteMeansMeme = false): { categories: BookmarkCategories; evidence: CategoryEvidence } {
+export function suggestCategories(positions: Match[]): { categories: BookmarkCategories; evidence: CategoryEvidence } {
   const recent = [...new Map(positions.map(position => [position.positionAddress, position])).values()]
     .filter(position => Number.isFinite(position.closedAt) && position.closedAt > 0)
     .sort((a, b) => b.closedAt - a.closedAt || a.positionAddress.localeCompare(b.positionAddress)).slice(0, 30);
   const categories = { ...emptyCategories };
-  const deposits = { quoteOnly: 0, doubleSided: 0, nonQuoteOnly: 0, unknown: 0 };
+  const deposits = { quoteOnly: 0, doubleSided: 0, baseOnly: 0, unknown: 0 };
   const holds: number[] = [], widths: number[] = [];
   const openingSessions = { Asia: 0, London: 0, NYC: 0 };
 
@@ -28,9 +28,11 @@ export function suggestCategories(positions: Match[], nonQuoteMeansMeme = false)
     else if (x > 0 && y > 0) deposits.doubleSided++;
     else {
       const mint = x > 0 ? position.pool.tokenXMint : position.pool.tokenYMint;
-      if (!mint) deposits.unknown++;
+      const otherMint = x > 0 ? position.pool.tokenYMint : position.pool.tokenXMint;
+      if (!mint || !otherMint) deposits.unknown++;
       else if (quoteMints.has(mint)) deposits.quoteOnly++;
-      else deposits.nonQuoteOnly++;
+      else if (quoteMints.has(otherMint)) deposits.baseOnly++;
+      else deposits.unknown++;
     }
     if (Number.isFinite(position.createdAt) && position.createdAt > 0 && position.createdAt <= position.closedAt) {
       holds.push(position.closedAt - position.createdAt);
@@ -47,7 +49,7 @@ export function suggestCategories(positions: Match[], nonQuoteMeansMeme = false)
     if (depositWinner && depositWinner[1] >= 16) {
       if (depositWinner[0] === 'quoteOnly') categories.deposits = 'Quote only';
       if (depositWinner[0] === 'doubleSided') categories.deposits = 'Double sided';
-      if (depositWinner[0] === 'nonQuoteOnly' && nonQuoteMeansMeme) categories.deposits = 'Meme only';
+      if (depositWinner[0] === 'baseOnly') categories.deposits = 'Meme only';
     }
     if (averageHoldSeconds !== null) {
       if (averageHoldSeconds < 900) categories.hold = 'Degen';
