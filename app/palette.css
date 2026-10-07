@@ -157,7 +157,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .bookmark-analysis-evidence { display: grid; gap: 4px; padding: 10px; border: 1px solid #d6c5b2; border-radius: 6px; background: #ede3d7; color: #554a3e; font-size: 11px; }
 .bookmark-analysis-evidence small { color: #6c5d4e; line-height: 1.35; }
 .bookmark-category-menu label { display: grid; gap: 5px; color: #584b3e; font-size: 12px; font-weight: 600; }
-.bookmark-category-menu select { width: 100%; height: 34px; padding: 0 9px; border: 1px solid #bfa98f; border-radius: 5px; background: #fff9f2; color: #22333b; font: inherit; font-size: 13px; }
+.bookmark-category-select { position: relative; display: block; }
+.bookmark-category-menu select { appearance: none; width: 100%; height: 36px; padding: 0 38px 0 12px; border: 1px solid #bfa98f; border-radius: 5px; background: #fff9f2; color: #22333b; font: inherit; font-size: 13px; cursor: pointer; }
+.bookmark-category-select > svg { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: #786b5d; pointer-events: none; }
 .bookmark-category-menu select:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
 .bookmark-category-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .bookmark-category-error { color: #a94740; font-size: 12px; }
