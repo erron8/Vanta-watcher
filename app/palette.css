@@ -156,11 +156,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .bookmark-analysis-status { color: #685a4b; font-size: 12px; }
 .bookmark-analysis-evidence { display: grid; gap: 4px; padding: 10px; border: 1px solid #d6c5b2; border-radius: 6px; background: #ede3d7; color: #554a3e; font-size: 11px; }
 .bookmark-analysis-evidence small { color: #6c5d4e; line-height: 1.35; }
-.bookmark-category-menu label { display: grid; gap: 5px; color: #584b3e; font-size: 12px; font-weight: 600; }
-.bookmark-category-select { position: relative; display: block; }
-.bookmark-category-menu select { appearance: none; width: 100%; height: 36px; padding: 0 38px 0 12px; border: 1px solid #bfa98f; border-radius: 5px; background: #fff9f2; color: #22333b; font: inherit; font-size: 13px; cursor: pointer; }
-.bookmark-category-select > svg { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: #786b5d; pointer-events: none; }
-.bookmark-category-menu select:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
+.bookmark-category-field { display: grid; gap: 5px; color: #584b3e; font-size: 12px; font-weight: 600; }
+.bookmark-category-select { width: 100%; height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 12px; border: 1px solid #bfa98f; border-radius: 5px; background: #fff9f2; color: #22333b; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.bookmark-category-select:hover, .bookmark-category-select[data-popup-open] { border-color: #806c56; background: #fffaf4; }
+.bookmark-category-select svg { color: #786b5d; }
+.bookmark-category-select:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
+.bookmark-category-positioner { z-index: 90; width: var(--anchor-width); }
+.bookmark-category-options { max-height: min(240px, var(--available-height)); overflow-y: auto; padding: 5px; border: 1px solid #bfa98f; border-radius: 7px; background: #fff9f2; box-shadow: 0 12px 28px #22333b33; }
+.bookmark-category-option { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 9px; border-radius: 4px; color: #22333b; font-size: 13px; cursor: pointer; }
+.bookmark-category-option[data-highlighted], .bookmark-category-option:hover { background: #e9ddce; outline: none; }
+.bookmark-category-option[data-selected] { color: #285c45; font-weight: 700; }
 .bookmark-category-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .bookmark-category-error { color: #a94740; font-size: 12px; }
 .bookmark-item { border-color: #d6c5b2; }

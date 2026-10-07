@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
+import { Select } from '@base-ui/react/select';
 import { Button } from '@/components/ui/button';
 import { categoryOptions, emptyCategories, type BookmarkCategories } from '@/lib/bookmark-categories';
 import { suggestCategories, type CategoryEvidence } from '@/lib/category-analysis';
@@ -31,8 +32,8 @@ export function BookmarkCategoryPicker({ address, categories, onSave }: { addres
 
   useEffect(() => {
     if (!open) return;
-    const outside = (event: PointerEvent) => { if (!wrapper.current?.contains(event.target as Node) && !saving && !analyzing) setOpen(false); };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving && !analyzing) setOpen(false); };
+    const outside = (event: PointerEvent) => { if (!wrapper.current?.contains(event.target as Node) && !(event.target as Element).closest?.('.bookmark-category-options') && !saving && !analyzing) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !(event.target as Element).closest?.('.bookmark-category-options') && !saving && !analyzing) setOpen(false); };
     document.addEventListener('pointerdown', outside);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
@@ -77,7 +78,16 @@ export function BookmarkCategoryPicker({ address, categories, onSave }: { addres
       <div className="bookmark-analysis-controls"><Button type="button" variant="outline" disabled={saving || analyzing} onClick={() => void analyze()}>{analyzing ? 'Analyzing…' : 'Auto-analyze 30 positions'}</Button>{analyzing && <button type="button" onClick={() => analysisController.current?.abort()}>Stop</button>}</div>
       {analysisStatus && <span className="bookmark-analysis-status" role="status">{analysisStatus}</span>}
       {evidence && <div className="bookmark-analysis-evidence"><span>Deposits: {evidence.deposits.quoteOnly} quote · {evidence.deposits.doubleSided} double · {evidence.deposits.baseOnly} base-only · {evidence.deposits.unknown} unknown</span><span>Average hold: {evidence.averageHoldSeconds === null ? 'unknown' : duration(evidence.averageHoldSeconds)} · Average range: {evidence.averageBins === null ? 'unknown' : evidence.averageBins.toFixed(1) + ' bins'}</span><span>Opening hours: {evidence.openingSessions.Asia} Asia · {evidence.openingSessions.London} London · {evidence.openingSessions.NYC} NYC</span><small>“Meme only” means base-only deposits paired with SOL or USDC; it does not verify the token is a meme. Timezone estimates opening hours, not location.</small></div>}
-      {groups.map(group => <label key={group.key}>{group.label}<span className="bookmark-category-select"><select value={draft[group.key] || ''} disabled={saving || analyzing} onChange={event => setDraft(previous => ({ ...previous, [group.key]: event.target.value || null }) as BookmarkCategories)}><option value="">Not set</option>{categoryOptions[group.key].map(option => <option value={option} key={option}>{group.descriptions?.[option] || option}</option>)}</select><ChevronDown size={15} aria-hidden="true" /></span></label>)}
+      {groups.map(group => <Select.Root key={group.key} value={draft[group.key]} disabled={saving || analyzing} modal={false} onValueChange={value => setDraft(previous => ({ ...previous, [group.key]: value }) as BookmarkCategories)}>
+        <div className="bookmark-category-field">
+          <Select.Label>{group.label}</Select.Label>
+          <Select.Trigger type="button" className="bookmark-category-select"><Select.Value>{value => value ? group.descriptions?.[value] || value : 'Not set'}</Select.Value><Select.Icon><ChevronDown size={15} aria-hidden="true" /></Select.Icon></Select.Trigger>
+        </div>
+        <Select.Portal><Select.Positioner className="bookmark-category-positioner" sideOffset={5} alignItemWithTrigger={false}><Select.Popup className="bookmark-category-options"><Select.List>
+          <Select.Item value={null} className="bookmark-category-option"><Select.ItemText>Not set</Select.ItemText><Select.ItemIndicator><Check size={14} aria-hidden="true" /></Select.ItemIndicator></Select.Item>
+          {categoryOptions[group.key].map(option => <Select.Item value={option} key={option} className="bookmark-category-option"><Select.ItemText>{group.descriptions?.[option] || option}</Select.ItemText><Select.ItemIndicator><Check size={14} aria-hidden="true" /></Select.ItemIndicator></Select.Item>)}
+        </Select.List></Select.Popup></Select.Positioner></Select.Portal>
+      </Select.Root>)}
       {error && <span className="bookmark-category-error" role="alert">{error}</span>}
       <div className="bookmark-category-actions"><Button type="button" variant="outline" disabled={saving || analyzing} onClick={() => setDraft({ ...emptyCategories })}>Clear</Button><Button type="submit" disabled={saving || analyzing}>{saving ? 'Saving…' : 'Save categories'}</Button></div>
     </form>}
