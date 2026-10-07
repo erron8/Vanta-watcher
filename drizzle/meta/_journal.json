@@ -43,6 +43,13 @@
       "when": 1791283395993,
       "tag": "0005_sparkling_microchip",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791337847791,
+      "tag": "0006_smooth_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

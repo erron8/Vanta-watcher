@@ -142,6 +142,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .wallet-pill.multi { background: #d9e3e6; border-color: #9cb0b8; color: #22333b; }
 .wallet-pill.degen { background: #f0e0ca; border-color: #ceb18a; color: #765329; }
 .wallet-pill.unclassified { color: #685a4b; }
+.bookmark-category-wrap { position: relative; display: inline-flex; min-width: 0; }
+.bookmark-category-trigger { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 2px; border: 0; background: transparent; color: #685a4b; text-align: left; }
+.bookmark-category-trigger:hover .wallet-pill, .bookmark-category-trigger[aria-expanded="true"] .wallet-pill { border-color: #7f6b55; }
+.bookmark-category-trigger .wallet-pill { pointer-events: none; }
+.bookmark-category-trigger svg { flex: none; }
+.bookmark-auto-hint { color: #897b6b; font-size: 10px; }
+.bookmark-category-menu { position: absolute; z-index: 80; top: calc(100% + 8px); right: 0; width: min(350px, calc(100vw - 32px)); display: grid; gap: 11px; padding: 17px; border: 1px solid #bea98f; border-radius: 9px; background: #f8f1e9; box-shadow: 0 16px 38px #22333b33; white-space: normal; }
+.bookmark-category-menu > strong { color: #22333b; font-size: 15px; }
+.bookmark-category-menu > p { color: #685a4b; font-size: 12px; margin-top: -7px; }
+.bookmark-category-menu label { display: grid; gap: 5px; color: #584b3e; font-size: 12px; font-weight: 600; }
+.bookmark-category-menu select { width: 100%; height: 34px; padding: 0 9px; border: 1px solid #bfa98f; border-radius: 5px; background: #fff9f2; color: #22333b; font: inherit; font-size: 13px; }
+.bookmark-category-menu select:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
+.bookmark-category-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.bookmark-category-error { color: #a94740; font-size: 12px; }
+@media (max-width: 650px) { .bookmark-category-menu { position: fixed; top: 50%; left: 12px; right: 12px; width: auto; max-height: 85vh; overflow: auto; transform: translateY(-50%); } }
 .bookmark-item { border-color: #d6c5b2; }
 .bookmark-notice:not(:empty) { color: #326d53; }
 .error-banner { background: #f1ddda; color: #8b3531; }

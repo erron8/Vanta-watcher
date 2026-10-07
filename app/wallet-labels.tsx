@@ -50,6 +50,12 @@ export function WalletPills({ address }: { address: string }) {
   return <span className="wallet-pills" onClick={e => e.stopPropagation()}>{(labels.length ? labels : [fallback]).map(label => <button type="button" key={label} className={`wallet-pill ${labels.includes(label) ? label.toLowerCase().replace(' ', '-') : 'unclassified'}`} title={title} aria-label={`${label} for ${address}. ${title}`} disabled={context.busy} onClick={() => context.analyze([address])}>{context.current === address ? 'Analyzing…' : label}</button>)}</span>;
 }
 
+export function useAutomaticLabels(address: string) {
+  const context = useContext(Context);
+  const profile = context?.profiles[address];
+  return profile ? labelsFor(profile) : [];
+}
+
 export function LabelControls({ addresses, disabled = false }: { addresses: string[]; disabled?: boolean }) {
   const context = useContext(Context);
   if (!context) return null;

@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext client-side Link navigation fails in this deployment. */
 
 import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { WalletPills } from './wallet-labels';
 
 export type Currency = "USD" | "SOL";
@@ -36,10 +36,10 @@ export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
   return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
 }
 
-export function WalletAddress({ address, name, marked, pending, onBookmark, onError }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void }) {
+export function WalletAddress({ address, name, marked, pending, onBookmark, onError, labels }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void; labels?: ReactNode }) {
   const [copied, setCopied] = useState(false);
   async function copy() { try { await navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { onError("Could not copy. Select the full address and copy it manually."); } }
-  return <div className="wallet-address" onClick={e => e.stopPropagation()}>{name && <span className="wallet-alias" title={name}>{name}</span>}<a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button><WalletPills address={address} /></div>;
+  return <div className="wallet-address" onClick={e => e.stopPropagation()}>{name && <span className="wallet-alias" title={name}>{name}</span>}<a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" title="Open portfolio on Fabriq">{address}</a><button className="icon-button" aria-label={`Copy ${address}`} title={copied ? "Copied" : "Copy wallet"} onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />}</button><button className={`icon-button ${marked ? "bookmarked" : ""}`} disabled={pending} aria-label={`${marked ? "Remove bookmark for" : "Bookmark"} ${address}`} aria-pressed={marked} title={marked ? "Remove bookmark" : "Bookmark wallet"} onClick={onBookmark}><Star size={16} fill={marked ? "currentColor" : "none"} /></button>{labels === undefined ? <WalletPills address={address} /> : labels}</div>;
 }
 
 export function Calendar({ row, month, currency = "USD", compact = false, onDateClick, onMonthChange }: { row: Row | null; month: string; currency?: Currency; compact?: boolean; onDateClick?: (date: string) => void; onMonthChange?: (month: string) => void }) {
