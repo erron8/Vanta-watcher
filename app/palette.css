@@ -120,6 +120,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 
 .candidate-wallet-line { display: flex; align-items: center; gap: 6px; max-width: 420px; }
 .candidate-wallet-line .history-wallet { min-width: 0; }
+.history-wallet-button { display: block; padding: 0; border: 0; background: transparent; color: #22333b; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+.history-wallet-button:hover { color: #5e503f; text-decoration: underline; }
 .candidate-bookmark { color: #776a5c; border: 1px solid #cdbba7; background: #efe5da; border-radius: 6px; }
 .candidate-bookmark:hover, .candidate-bookmark.bookmarked { color: #22333b; background: #e3d5c5; }
 .candidate-wallet-address { display: block; max-width: 390px; margin: 3px 0 5px; color: #766a5d; font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; white-space: normal; }
