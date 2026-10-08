@@ -2,6 +2,8 @@
 
 Vanta is a Meteora DLMM wallet screener for Solana. The homepage is public. The screener, bookmarks, and their data APIs require sign-in.
 
+For a new server, follow the [step-by-step VPS deployment guide](DEPLOY_VPS.md).
+
 Import a Solscan activity CSV to scan its unique wallets, then filter the saved results by average invested, active days, largest daily loss, and monthly profit. Vanta shows daily USD/SOL P&L calendars, loads position history when requested, and keeps named and categorized bookmarks. It uses Meteora portfolio and DLMM endpoints; no paid API key is needed for the current features.
 
 ## Accounts and data
