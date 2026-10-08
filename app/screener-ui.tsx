@@ -1,5 +1,6 @@
 "use client";
-/* eslint-disable @next/next/no-html-link-for-pages -- Vinext client-side Link navigation fails in this deployment. */
+/* eslint-disable @next/next/no-html-link-for-pages -- Full-page section navigation clears the prior wallet view. */
+/* eslint-disable @next/next/no-location-assign-relative-destination -- Sign-out needs a full reload to clear private client state. */
 
 import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, type ReactNode } from "react";
