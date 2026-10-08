@@ -1,0 +1,19 @@
+.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 80px 20px; background: #eae0d5; color: #22333b; }
+.login-brand { position: absolute; top: 28px; left: max(24px, calc((100vw - 1200px) / 2)); display: inline-flex; align-items: center; gap: 9px; color: #22333b; font-size: 25px; font-weight: 800; letter-spacing: -.045em; }
+.login-brand svg { color: #5e503f; }
+.login-card { width: min(100%, 420px); padding: 34px; border: 1px solid #c6ac8f; border-radius: 14px; background: #f8f1e9; box-shadow: 0 18px 45px #22333b1f; }
+.login-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 11px; background: #e5d5c3; color: #22333b; }
+.login-eyebrow { margin: 28px 0 7px; color: #786957; font-size: 11px; font-weight: 800; letter-spacing: .15em; }
+.login-card h1 { margin: 0; font-size: 32px; letter-spacing: -.045em; }
+.login-card > p:not(.login-eyebrow) { margin: 10px 0 26px; color: #685a4b; font-size: 14px; line-height: 1.5; }
+.login-form { display: grid; gap: 16px; }
+.login-form label { display: grid; gap: 7px; color: #584b3e; font-size: 13px; font-weight: 700; }
+.login-form input { height: 44px; width: 100%; padding: 0 12px; border: 1px solid #bfa98f; border-radius: 7px; background: #fff9f2; color: #22333b; font: inherit; }
+.login-form input:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
+.login-form > button { display: flex; align-items: center; justify-content: space-between; height: 46px; margin-top: 8px; padding: 0 15px; border: 0; border-radius: 7px; background: #22333b; color: #fff; font-size: 14px; font-weight: 750; cursor: pointer; }
+.login-form > button:hover { background: #344c55; }
+.login-form > button:disabled { opacity: .55; cursor: wait; }
+.login-error { margin: 0; color: #a94740; font-size: 12px; }
+.sign-out-button { margin-left: 12px; padding: 7px 11px; border: 1px solid #bfa98f; border-radius: 5px; color: #5e503f; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.sign-out-button:hover { background: #e5d5c3; }
+@media (max-width: 650px) { .login-card { padding: 26px 22px; } .sign-out-button { margin-left: auto; } }

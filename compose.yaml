@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vanta
+      POSTGRES_USER: vanta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vanta -d vanta"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    image: postgres:17-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ./db/postgres.sql:/schema.sql:ro
+    command: ["psql", "-h", "db", "-U", "vanta", "-d", "vanta", "-v", "ON_ERROR_STOP=1", "-f", "/schema.sql"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://vanta:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/vanta
+      VANTA_SESSION_SECRET: ${VANTA_SESSION_SECRET:?Set VANTA_SESSION_SECRET in .env}
+      VANTA_ADMIN_PASSWORD_HASH: ${VANTA_ADMIN_PASSWORD_HASH:?Set VANTA_ADMIN_PASSWORD_HASH in .env}
+      VANTA_GUEST_PASSWORD_HASH: ${VANTA_GUEST_PASSWORD_HASH:?Set VANTA_GUEST_PASSWORD_HASH in .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      VANTA_DOMAIN: ${VANTA_DOMAIN:?Set VANTA_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

@@ -1,4 +1,6 @@
+import { denyAnonymous } from '@/lib/access';
 export async function GET(request: Request) {
+  const denied = denyAnonymous(request); if (denied) return denied;
   const q = new URL(request.url).searchParams;
   const user = q.get("user") || "", pool = q.get("pool"), page = Number(q.get("page") || 1);
   const address = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;

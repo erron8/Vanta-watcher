@@ -1,9 +1,11 @@
 import { SOL_MINT, USDC_MINT, shortToken } from "@/lib/pool-label";
+import { denyAnonymous } from '@/lib/access';
 
 const isMint = (value: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 const known = new Map([[SOL_MINT, "SOL"], [USDC_MINT, "USDC"]]);
 
 export async function GET(request: Request) {
+  const denied = denyAnonymous(request); if (denied) return denied;
   const url = new URL(request.url);
   const base = url.searchParams.get("base") || "", quote = url.searchParams.get("quote") || "";
   if (!isMint(base) || !isMint(quote) || base === quote) return Response.json({ error: "Invalid token pair." }, { status: 400 });
@@ -26,5 +28,5 @@ export async function GET(request: Request) {
     } catch { /* Fall back to a shortened mint when metadata is unavailable. */ }
   }
   const label = `${symbols.get(base) || shortToken(base)}-${symbols.get(quote) || shortToken(quote)}`;
-  return Response.json({ label }, { headers: { "Cache-Control": "public, max-age=3600" } });
+  return Response.json({ label }, { headers: { "Cache-Control": "private, max-age=3600" } });
 }

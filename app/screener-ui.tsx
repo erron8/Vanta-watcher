@@ -33,7 +33,7 @@ export const shiftMonth = (month: string, offset: number) => {
 };
 
 export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
-  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span></header>;
+  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span><button type="button" className="sign-out-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); sessionStorage.clear(); window.location.assign('/'); }}>Sign out</button></header>;
 }
 
 export function WalletAddress({ address, name, marked, pending, onBookmark, onError, labels }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void; labels?: ReactNode }) {

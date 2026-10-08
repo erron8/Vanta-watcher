@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./landing.css";
 import "./palette.css";
+import "./login.css";
 import { WalletLabelsProvider } from './wallet-labels';
 
 export const metadata: Metadata = {
