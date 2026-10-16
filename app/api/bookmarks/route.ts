@@ -18,11 +18,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const denied = denyAnonymous(request); if (denied) return denied;
-  let address: unknown;
-  try { ({ address } = await request.json() as { address?: unknown }); } catch { return Response.json({ error: 'Enter a Solana wallet address.' }, { status: 400 }); }
+  let address: unknown, requestedName: unknown;
+  try { ({ address, name: requestedName } = await request.json() as { address?: unknown; name?: unknown }); } catch { return Response.json({ error: 'Enter a Solana wallet address.' }, { status: 400 }); }
   if (typeof address !== 'string' || !isSolanaAddress(address)) return Response.json({ error: 'Enter a valid Solana wallet address.' }, { status: 400 });
+  if (requestedName !== undefined && (typeof requestedName !== 'string' || requestedName.trim().length > 80)) return Response.json({ error: 'Enter a name of up to 80 characters.' }, { status: 400 });
   try {
-    const result = await database().query('INSERT INTO bookmarks (address, created_at) VALUES ($1, $2) ON CONFLICT (address) DO NOTHING RETURNING address', [address, new Date().toISOString()]);
+    const result = await database().query('INSERT INTO bookmarks (address, name, created_at) VALUES ($1, $2, $3) ON CONFLICT (address) DO NOTHING RETURNING address', [address, typeof requestedName === 'string' ? requestedName.trim() : '', new Date().toISOString()]);
+    if (!result.rowCount && typeof requestedName === 'string') await database().query('UPDATE bookmarks SET name = $1 WHERE address = $2', [requestedName.trim(), address]);
     const row = await database().query<BookmarkRecord>(`${selectRow} WHERE address = $1`, [address]);
     const created = result.rowCount === 1;
     return Response.json({ ...publicBookmark(row.rows[0]), created }, { status: created ? 201 : 200 });

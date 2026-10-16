@@ -64,10 +64,8 @@ export function WalletFinder({ wallets, disabled, bookmarks, bookmarkNames, onBo
     if (!name) { setBookmarkError('Enter a name for this wallet.'); return; }
     setSavingBookmark(true); setBookmarkError('');
     try {
-      const add = await fetch('/api/bookmarks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: bookmarkAddress }) });
-      if (!add.ok) throw new Error((await add.json() as { error?: string }).error || 'Could not bookmark the wallet.');
-      const rename = await fetch('/api/bookmarks', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: bookmarkAddress, name }) });
-      if (!rename.ok) throw new Error((await rename.json() as { error?: string }).error || 'Could not save the wallet name.');
+      const response = await fetch('/api/bookmarks', { method: bookmarks.has(bookmarkAddress) ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: bookmarkAddress, name }) });
+      if (!response.ok) throw new Error((await response.json() as { error?: string }).error || 'Could not save the bookmark.');
       clearSessionCache('vanta:bookmarks:v1');
       onBookmarked(bookmarkAddress, name);
       setBookmarkAddress(null);

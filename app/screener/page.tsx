@@ -55,6 +55,9 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [bookmarkNames, setBookmarkNames] = useState<Record<string, string>>({});
   const [bookmarkPending, setBookmarkPending] = useState<Set<string>>(new Set());
+  const [bookmarkAddress, setBookmarkAddress] = useState<string | null>(null);
+  const [bookmarkName, setBookmarkName] = useState("");
+  const [bookmarkError, setBookmarkError] = useState("");
   const [sort, setSort] = useState<Sort>("monthlyProfit");
   const [direction, setDirection] = useState(-1);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -64,6 +67,7 @@ export default function Home() {
   const overviewRef = useRef<HTMLDivElement>(null);
   const scanLock = useRef(false);
   const importStarted = useRef(false);
+  const bookmarkTrigger = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -234,17 +238,44 @@ export default function Home() {
     finally { scanLock.current = false; setBusy(false); }
   }
 
+  function closeBookmarkDialog() {
+    setBookmarkAddress(null); setBookmarkError("");
+    requestAnimationFrame(() => bookmarkTrigger.current?.focus());
+  }
+
   async function bookmark(address: string) {
     if (bookmarkPending.has(address)) return;
-    const remove = bookmarks.has(address);
+    if (!bookmarks.has(address)) {
+      bookmarkTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setBookmarkAddress(address); setBookmarkName(""); setBookmarkError(""); setHover(null);
+      return;
+    }
     setBookmarkPending(prev => new Set(prev).add(address));
     try {
-      const response = await fetch("/api/bookmarks", { method: remove ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
+      const response = await fetch("/api/bookmarks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
       if (!response.ok) throw new Error("Could not update the bookmark.");
       clearSessionCache("vanta:bookmarks:v1");
-      setBookmarks(prev => { const next = new Set(prev); if (remove) next.delete(address); else next.add(address); return next; });
+      setBookmarks(prev => { const next = new Set(prev); next.delete(address); return next; });
       setBookmarkNames(prev => { const next = { ...prev }; delete next[address]; return next; });
     } catch (e) { setProblem((e as Error).message); }
+    finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
+  }
+
+  async function saveBookmark() {
+    if (!bookmarkAddress || bookmarkPending.has(bookmarkAddress)) return;
+    const name = bookmarkName.trim();
+    if (!name) { setBookmarkError("Enter a name for this wallet."); return; }
+    const address = bookmarkAddress;
+    setBookmarkPending(prev => new Set(prev).add(address)); setBookmarkError("");
+    try {
+      const response = await fetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address, name }) });
+      const data = await response.json() as { address?: string; name?: string; error?: string };
+      if (!response.ok || !data.address) throw new Error(data.error || "Could not save the bookmark.");
+      clearSessionCache("vanta:bookmarks:v1");
+      setBookmarks(prev => new Set(prev).add(address));
+      setBookmarkNames(prev => ({ ...prev, [address]: data.name ?? name }));
+      closeBookmarkDialog();
+    } catch (e) { setBookmarkError((e as Error).message); }
     finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
   }
 
@@ -301,5 +332,6 @@ export default function Home() {
       </section>
     </div>
     {hover && <div className="hover-calendar" style={{ left: Math.max(8, Math.min(hover.x + 18, window.innerWidth - 570)), top: Math.max(8, hover.y + 345 > window.innerHeight ? hover.y - 325 : hover.y + 18) }}><Calendar row={hover.row} month={scanMonth || month} currency={currency} compact /></div>}
+    {bookmarkAddress && <div className="bookmark-dialog-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !bookmarkPending.has(bookmarkAddress)) closeBookmarkDialog(); }}><div className="bookmark-dialog" role="dialog" aria-modal="true" aria-labelledby="table-bookmark-dialog-title" onKeyDown={e => { if (e.key === "Escape" && !bookmarkPending.has(bookmarkAddress)) closeBookmarkDialog(); }}><h2 id="table-bookmark-dialog-title">Bookmark wallet</h2><p className="bookmark-dialog-address">{bookmarkAddress}</p><form onSubmit={e => { e.preventDefault(); void saveBookmark(); }}><label htmlFor="table-bookmark-name">Wallet name</label><Input id="table-bookmark-name" autoFocus maxLength={80} value={bookmarkName} onChange={e => setBookmarkName(e.target.value)} placeholder="e.g. SOL trader" disabled={bookmarkPending.has(bookmarkAddress)} />{bookmarkError && <p className="bookmark-dialog-error" role="alert">{bookmarkError}</p>}<div className="bookmark-dialog-actions"><Button type="button" variant="outline" disabled={bookmarkPending.has(bookmarkAddress)} onClick={closeBookmarkDialog}>Cancel</Button><Button type="submit" disabled={bookmarkPending.has(bookmarkAddress)}>{bookmarkPending.has(bookmarkAddress) ? "Saving…" : "Save bookmark"}</Button></div></form></div></div>}
   </main>;
 }
