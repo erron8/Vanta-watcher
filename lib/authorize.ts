@@ -1,15 +1,20 @@
 import { readSessionClaims, sameOrigin, sessionCookie, sessionStamp } from './access';
 import { sessionCredential, userById } from './users';
+import { ownerCredentials, ownerSessionCredential } from './owner';
 
 export type Identity = { account: string; username: string; isAdmin: boolean };
 
 export async function authenticateSession(cookie: string | undefined): Promise<Identity | null> {
   const claims = readSessionClaims(cookie);
   if (!claims) return null;
-  if (claims.account === 'admin' || claims.account === 'guest') {
-    return { account: claims.account, username: claims.account, isAdmin: claims.account === 'admin' };
-  }
   try {
+    if (claims.account === 'guest') return { account: 'guest', username: 'guest', isAdmin: false };
+    if (claims.account === 'admin' || claims.account === 'owner') {
+      const owner = await ownerCredentials();
+      if (claims.account === 'admin') return owner ? null : { account: 'admin', username: 'admin', isAdmin: true };
+      if (!owner || claims.stamp !== sessionStamp(ownerSessionCredential(owner))) return null;
+      return { account: 'admin', username: owner.username, isAdmin: true };
+    }
     const user = await userById(claims.account.slice('member:'.length));
     if (!user?.enabled || claims.stamp !== sessionStamp(sessionCredential(user))) return null;
     return { account: claims.account, username: user.username, isAdmin: false };

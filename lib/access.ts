@@ -3,7 +3,7 @@ import { createHmac, scryptSync, timingSafeEqual } from 'node:crypto';
 export const sessionCookie = 'vanta_session';
 const sessionLifetime = 7 * 24 * 60 * 60;
 export type Account = 'admin' | 'guest';
-export type SessionAccount = Account | `member:${string}`;
+export type SessionAccount = Account | 'owner' | `member:${string}`;
 export type SessionClaims = { account: SessionAccount; stamp: string };
 const memberAccount = /^member:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
@@ -53,6 +53,10 @@ export function createMemberSession(id: string, credential: string, now = Date.n
   return signedSession(`member:${id}`, credential, now);
 }
 
+export function createOwnerSession(credential: string, now = Date.now()) {
+  return signedSession('owner', credential, now);
+}
+
 export function readSessionClaims(value: string | undefined, now = Date.now()): SessionClaims | null {
   const secret = sessionSecret();
   if (!secret || !value || value.length > 1024) return null;
@@ -65,7 +69,7 @@ export function readSessionClaims(value: string | undefined, now = Date.now()): 
     const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { account?: unknown; exp?: unknown; stamp?: unknown };
     if (typeof decoded.account !== 'string' || typeof decoded.stamp !== 'string' || typeof decoded.exp !== 'number' || decoded.exp <= Math.floor(now / 1000)) return null;
     if (decoded.account === 'admin' || decoded.account === 'guest') return decoded.stamp === sessionStamp(passwordHash(decoded.account)) ? { account: decoded.account, stamp: decoded.stamp } : null;
-    return memberAccount.test(decoded.account) && /^[a-f0-9]{16}$/.test(decoded.stamp) ? { account: decoded.account as SessionAccount, stamp: decoded.stamp } : null;
+    return (decoded.account === 'owner' || memberAccount.test(decoded.account)) && /^[a-f0-9]{16}$/.test(decoded.stamp) ? { account: decoded.account as SessionAccount, stamp: decoded.stamp } : null;
   } catch { return null; }
 }
 
@@ -90,7 +94,7 @@ export function safeDestination(value: string | null | undefined) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/screener';
   try {
     const url = new URL(value, 'https://vanta.local');
-    if (url.origin !== 'https://vanta.local' || !['/screener', '/bookmarks', '/admin'].includes(url.pathname)) return '/screener';
+    if (url.origin !== 'https://vanta.local' || !['/screener', '/bookmarks', '/admin', '/profile'].includes(url.pathname)) return '/screener';
     return `${url.pathname}${url.search}`;
   } catch { return '/screener'; }
 }

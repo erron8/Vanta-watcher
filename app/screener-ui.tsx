@@ -2,8 +2,8 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Full-page section navigation clears the prior wallet view. */
 /* eslint-disable @next/next/no-location-assign-relative-destination -- Sign-out needs a full reload to clear private client state. */
 
-import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight, UserRound, LogOut } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WalletPills } from './wallet-labels';
 
 export type Currency = "USD" | "SOL";
@@ -33,15 +33,28 @@ export const shiftMonth = (month: string, offset: number) => {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
-export function Navigation({ active }: { active: "screener" | "bookmarks" | "admin" }) {
-  const [isAdmin, setIsAdmin] = useState(active === 'admin');
+export function Navigation({ active }: { active: "screener" | "bookmarks" | "admin" | "profile" }) {
+  const [identity, setIdentity] = useState<{ username: string; isAdmin: boolean } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (active === 'admin') return;
     let mounted = true;
-    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => response.ok ? await response.json() as { isAdmin?: boolean } : null).then(identity => { if (mounted) setIsAdmin(identity?.isAdmin === true); }).catch(() => {});
+    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => response.ok ? await response.json() as { username: string; isAdmin: boolean } : null).then(value => { if (mounted) setIdentity(value); }).catch(() => {});
     return () => { mounted = false; };
   }, [active]);
-  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a>{isAdmin && <a href="/admin" aria-current={active === "admin" ? "page" : undefined} className={active === "admin" ? "nav-active" : ""}>Admin</a>}</nav><span className="network-label">Meteora <span> / </span> Solana</span><button type="button" className="sign-out-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); sessionStorage.clear(); window.location.assign('/'); }}>Sign out</button></header>;
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false); };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => { document.removeEventListener('pointerdown', closeOnOutsideClick); document.removeEventListener('keydown', closeOnEscape); };
+  }, [menuOpen]);
+  async function logout() {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); }
+    finally { sessionStorage.clear(); window.location.assign('/'); }
+  }
+  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a>{(identity?.isAdmin || active === 'admin') && <a href="/admin" aria-current={active === "admin" ? "page" : undefined} className={active === "admin" ? "nav-active" : ""}>Admin</a>}</nav><span className="network-label">Meteora <span> / </span> Solana</span><div className="profile-menu-wrap" ref={menuRef}><button type="button" className="profile-trigger" aria-label="Open profile menu" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(open => !open)}><UserRound size={19} aria-hidden="true" /></button>{menuOpen && <div className="profile-menu" role="menu"><div className="profile-menu-identity"><span className="profile-menu-avatar"><UserRound size={22} /></span><span><strong>{identity?.username ?? 'Your account'}</strong><small>{identity?.isAdmin ? 'Administrator' : 'Member'}</small></span></div><a role="menuitem" href="/profile" onClick={() => setMenuOpen(false)}><UserRound size={17} />Profile</a><button type="button" role="menuitem" onClick={() => void logout()}><LogOut size={17} />Logout</button></div>}</div></header>;
 }
 
 export function WalletAddress({ address, name, marked, pending, onBookmark, onError, labels }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void; labels?: ReactNode }) {

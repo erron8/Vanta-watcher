@@ -48,3 +48,12 @@ CREATE TABLE IF NOT EXISTS app_users (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT app_users_username_format CHECK (username ~ '^[a-z][a-z0-9_-]{2,31}$')
 );
+
+CREATE TABLE IF NOT EXISTS owner_credentials (
+  id integer PRIMARY KEY CHECK (id = 1),
+  username text NOT NULL,
+  password_hash text NOT NULL,
+  session_version uuid NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT owner_credentials_username_format CHECK (username ~ '^[a-z][a-z0-9_-]{2,31}$')
+);

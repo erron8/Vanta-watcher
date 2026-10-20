@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { checkPassword, createMemberSession, createSession, safeDestination, sameOrigin, sessionCookie, type Account } from '@/lib/access';
+import { checkPassword, createMemberSession, createOwnerSession, createSession, safeDestination, sameOrigin, sessionCookie } from '@/lib/access';
 import { sessionCredential, userByName, verifyUserPassword } from '@/lib/users';
+import { ownerCredentials, ownerSessionCredential, verifyOwnerPassword } from '@/lib/owner';
 
 export const runtime = 'nodejs';
 
@@ -25,19 +26,22 @@ export async function POST(request: Request) {
   let valid = false;
   let token: string | undefined;
   if (typeof username === 'string' && typeof password === 'string' && password.length <= 256) {
-    if (username === 'admin' || username === 'guest') {
-      valid = checkPassword(username as Account, password);
-      if (valid) {
-        try { token = createSession(username as Account); }
-        catch { return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
+    try {
+      if (username === 'guest') {
+        valid = checkPassword('guest', password);
+        if (valid) token = createSession('guest');
+      } else if (/^[a-z][a-z0-9_-]{2,31}$/.test(username)) {
+        const owner = await ownerCredentials();
+        if (owner ? username === owner.username : username === 'admin') {
+          valid = verifyOwnerPassword(owner, password);
+          if (valid) token = owner ? createOwnerSession(ownerSessionCredential(owner)) : createSession('admin');
+        } else if (username !== 'admin') {
+          const user = await userByName(username);
+          valid = !!user && verifyUserPassword(user, password);
+          if (valid && user) token = createMemberSession(user.id, sessionCredential(user));
+        }
       }
-    } else if (/^[a-z][a-z0-9_-]{2,31}$/.test(username)) {
-      try {
-        const user = await userByName(username);
-        valid = !!user && verifyUserPassword(user, password);
-        if (valid && user) token = createMemberSession(user.id, sessionCredential(user));
-      } catch { return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
-    }
+    } catch { return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
   }
   if (!valid || !token) {
     failedAttempts.set(ip, { count: (previous && previous.resetAt > now ? previous.count : 0) + 1, resetAt: previous && previous.resetAt > now ? previous.resetAt : now + attemptWindow });
