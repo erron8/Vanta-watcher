@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { checkPassword, createSession, safeDestination, sameOrigin, sessionCookie, type Account } from '@/lib/access';
+import { checkPassword, createMemberSession, createSession, safeDestination, sameOrigin, sessionCookie, type Account } from '@/lib/access';
+import { sessionCredential, userByName, verifyUserPassword } from '@/lib/users';
+
+export const runtime = 'nodejs';
 
 const failedAttempts = new Map<string, { count: number; resetAt: number }>();
 const attemptWindow = 15 * 60 * 1000;
@@ -19,14 +22,28 @@ export async function POST(request: Request) {
   try { body = await request.json() as typeof body; } catch { return NextResponse.json({ error: 'Enter your username and password.' }, { status: 400 }); }
   const username = body.username;
   const password = body.password;
-  if (typeof username !== 'string' || typeof password !== 'string' || !['admin', 'guest'].includes(username) || !checkPassword(username as Account, password)) {
+  let valid = false;
+  let token: string | undefined;
+  if (typeof username === 'string' && typeof password === 'string' && password.length <= 256) {
+    if (username === 'admin' || username === 'guest') {
+      valid = checkPassword(username as Account, password);
+      if (valid) {
+        try { token = createSession(username as Account); }
+        catch { return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
+      }
+    } else if (/^[a-z][a-z0-9_-]{2,31}$/.test(username)) {
+      try {
+        const user = await userByName(username);
+        valid = !!user && verifyUserPassword(user, password);
+        if (valid && user) token = createMemberSession(user.id, sessionCredential(user));
+      } catch { return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
+    }
+  }
+  if (!valid || !token) {
     failedAttempts.set(ip, { count: (previous && previous.resetAt > now ? previous.count : 0) + 1, resetAt: previous && previous.resetAt > now ? previous.resetAt : now + attemptWindow });
     return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   failedAttempts.delete(ip);
-  let token: string;
-  try { token = createSession(username as Account); }
-  catch { return NextResponse.json({ error: 'Sign-in is unavailable.' }, { status: 503 }); }
   const response = NextResponse.json({ next: safeDestination(typeof body.next === 'string' ? body.next : null) });
   response.cookies.set(sessionCookie, token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 });
   response.headers.set('Cache-Control', 'no-store');

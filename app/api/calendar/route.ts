@@ -1,6 +1,6 @@
-import { denyAnonymous } from '@/lib/access';
+import { denyAnonymous } from '@/lib/authorize';
 export async function GET(request: Request) {
-  const denied = denyAnonymous(request); if (denied) return denied;
+  const denied = await denyAnonymous(request); if (denied) return denied;
   const query = new URL(request.url).searchParams;
   const address = query.get("address") || "";
   const month = query.get("month") || "";

@@ -1,6 +1,6 @@
 # Deploy Vanta on your VPS
 
-This guide installs Vanta from the [GitHub repository](https://github.com/erron8/Vanta-watcher) with Docker Compose. It is written for an Ubuntu or Debian VPS where your SSH user can run `sudo`. The homepage will be public; `/screener`, `/bookmarks`, and their data APIs will require an `admin` or `guest` login.
+This guide installs Vanta from the [GitHub repository](https://github.com/erron8/Vanta-watcher) with Docker Compose. It is written for an Ubuntu or Debian VPS where your SSH user can run `sudo`. The homepage will be public; `/screener`, `/bookmarks`, and their data APIs require sign-in. The built-in `admin` can add more accounts through `/admin`.
 
 Replace `YOUR_SERVER_IP` and `vanta.yourdomain.com` with your own values. You do not need Node.js or PostgreSQL installed on the VPS.
 
@@ -96,7 +96,7 @@ Set it to your actual hostname, for example `VANTA_DOMAIN=vanta.yourdomain.com`,
 cat .vanta-initial-credentials
 ```
 
-The usernames are `admin` and `guest`. Both currently have the same ability to use and edit the app. Store their passwords safely. The passwords previously generated on your Mac will **not** work on this fresh VPS unless you securely copy your Mac's matching `.env` to the server instead of running the generator.
+The initial usernames are `admin` and `guest`. Both can use the screener and bookmarks; only `admin` can manage additional users from the Admin tab. Store their passwords safely. The passwords previously generated on your Mac will **not** work on this fresh VPS unless you securely copy your Mac's matching `.env` to the server instead of running the generator.
 
 ## 5. Start Vanta
 

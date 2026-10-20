@@ -1,5 +1,5 @@
 import { database } from '@/db/postgres';
-import { denyAnonymous } from '@/lib/access';
+import { denyAnonymous } from '@/lib/authorize';
 
 export const runtime = 'nodejs';
 type Metric = {
@@ -11,7 +11,7 @@ type Metric = {
 type ScanRecord = { id: string; sourceName: string; month: string; walletCount: number; createdAt: Date };
 
 export async function GET(request: Request) {
-  const denied = denyAnonymous(request); if (denied) return denied;
+  const denied = await denyAnonymous(request); if (denied) return denied;
   try {
     const scanResult = await database().query<ScanRecord>('SELECT id, source_name AS "sourceName", month, wallet_count AS "walletCount", created_at AS "createdAt" FROM scans ORDER BY created_at DESC LIMIT 1');
     const scan = scanResult.rows[0];
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const denied = denyAnonymous(request); if (denied) return denied;
+  const denied = await denyAnonymous(request); if (denied) return denied;
   let body: { sourceName?: string; month?: string; rows?: Metric[] };
   try { body = await request.json() as typeof body; } catch { return Response.json({ error: 'Invalid scan payload.' }, { status: 400 }); }
   if (!body.sourceName || !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.month || '') || !Array.isArray(body.rows) || body.rows.length === 0) return Response.json({ error: 'Invalid scan payload.' }, { status: 400 });

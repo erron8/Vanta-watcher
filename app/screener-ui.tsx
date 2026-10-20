@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-location-assign-relative-destination -- Sign-out needs a full reload to clear private client state. */
 
 import { Copy, Star, Check, Layers3, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { WalletPills } from './wallet-labels';
 
 export type Currency = "USD" | "SOL";
@@ -33,8 +33,15 @@ export const shiftMonth = (month: string, offset: number) => {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
-export function Navigation({ active }: { active: "screener" | "bookmarks" }) {
-  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a></nav><span className="network-label">Meteora <span> / </span> Solana</span><button type="button" className="sign-out-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); sessionStorage.clear(); window.location.assign('/'); }}>Sign out</button></header>;
+export function Navigation({ active }: { active: "screener" | "bookmarks" | "admin" }) {
+  const [isAdmin, setIsAdmin] = useState(active === 'admin');
+  useEffect(() => {
+    if (active === 'admin') return;
+    let mounted = true;
+    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => response.ok ? await response.json() as { isAdmin?: boolean } : null).then(identity => { if (mounted) setIsAdmin(identity?.isAdmin === true); }).catch(() => {});
+    return () => { mounted = false; };
+  }, [active]);
+  return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a>{isAdmin && <a href="/admin" aria-current={active === "admin" ? "page" : undefined} className={active === "admin" ? "nav-active" : ""}>Admin</a>}</nav><span className="network-label">Meteora <span> / </span> Solana</span><button type="button" className="sign-out-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); sessionStorage.clear(); window.location.assign('/'); }}>Sign out</button></header>;
 }
 
 export function WalletAddress({ address, name, marked, pending, onBookmark, onError, labels }: { address: string; name?: string | null; marked: boolean; pending?: boolean; onBookmark: () => void; onError: (message: string) => void; labels?: ReactNode }) {

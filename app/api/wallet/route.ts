@@ -1,6 +1,6 @@
-import { denyAnonymous } from '@/lib/access';
+import { denyAnonymous } from '@/lib/authorize';
 export async function GET(request:Request){
- const denied = denyAnonymous(request); if (denied) return denied;
+ const denied = await denyAnonymous(request); if (denied) return denied;
  const q=new URL(request.url).searchParams,address=q.get('address')||'',month=q.get('month')||'';
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return Response.json({error:'Invalid wallet or month'},{status:400});
  const base='https://portfolio.datapi.meteora.ag';

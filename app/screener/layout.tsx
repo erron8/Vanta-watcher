@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { readSession, sessionCookie } from '@/lib/access';
+import { sessionCookie } from '@/lib/access';
+import { authenticateSession } from '@/lib/authorize';
 
 export default async function ProtectedScreener({ children }: { children: React.ReactNode }) {
-  if (!readSession((await cookies()).get(sessionCookie)?.value)) redirect('/login?next=%2Fscreener');
+  if (!await authenticateSession((await cookies()).get(sessionCookie)?.value)) redirect('/login?next=%2Fscreener');
   return children;
 }

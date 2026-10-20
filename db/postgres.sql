@@ -37,3 +37,14 @@ CREATE TABLE IF NOT EXISTS wallet_profiles (
   address text PRIMARY KEY,
   profile_json text NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS app_users (
+  id uuid PRIMARY KEY,
+  username text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  session_version uuid NOT NULL,
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT app_users_username_format CHECK (username ~ '^[a-z][a-z0-9_-]{2,31}$')
+);

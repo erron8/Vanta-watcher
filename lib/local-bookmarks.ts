@@ -5,7 +5,8 @@ import { emptyCategories, parseCategories, type BookmarkCategories } from './boo
 import { isSolanaAddress } from './solana-address.ts';
 
 export type BookmarkRow = { address: string; name: string; createdAt: string; categories: BookmarkCategories };
-type Account = 'admin' | 'guest';
+type Account = string;
+const validAccount = (value: unknown): value is Account => typeof value === 'string' && (value === 'admin' || value === 'guest' || /^member:[0-9a-f-]{36}$/.test(value));
 
 export const bookmarkStorageKey = (account: Account) => `vanta:bookmarks:local:v1:${account}`;
 
@@ -40,7 +41,7 @@ export function useLocalBookmarks() {
       .then(async response => {
         if (!response.ok) throw new Error('Sign in to load your bookmarks.');
         const data = await response.json() as { account?: string };
-        if (data.account !== 'admin' && data.account !== 'guest') throw new Error('Could not identify the signed-in account.');
+        if (!validAccount(data.account)) throw new Error('Could not identify the signed-in account.');
         return data.account;
       })
       .then(value => { if (active) { setRows(readBookmarks(value)); setAccount(value); } })

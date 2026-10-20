@@ -3,6 +3,7 @@ import "./globals.css";
 import "./landing.css";
 import "./palette.css";
 import "./login.css";
+import "./admin.css";
 import { WalletLabelsProvider } from './wallet-labels';
 
 export const metadata: Metadata = {
