@@ -44,6 +44,11 @@ yarn-error.log*
 *.db
 *.db-*
 *.csv
+*.tsv
+*.jsonl
+*.dump
+*.backup
+*.sql.gz
 /public/data/wallets.json
 
 # vercel
