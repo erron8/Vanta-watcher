@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { history, matches, duration, type Match } from '@/lib/history';
 import { amount, number, tone, type Currency } from './screener-ui';
 import { WalletPills } from './wallet-labels';
-import { clearSessionCache } from '@/lib/session-cache';
 
 function Positions({ positions, currency = "USD", bookmarks, bookmarkNames, onBookmark, onSelectWallet }: { positions: Match[]; currency?: Currency; bookmarks?: Set<string>; bookmarkNames?: Record<string, string>; onBookmark?: (address: string) => void; onSelectWallet?: (address: string) => void }) {
   return <div className="wallet-table-scroll"><table className="wallet-table position-table"><thead><tr><th>Wallet / position</th><th>Pool</th><th>Deposited ({currency})</th><th>P&L ({currency})</th><th>Return ({currency})</th><th>Held</th><th>Closed (UTC)</th></tr></thead><tbody>{positions.map(p => {
@@ -64,9 +63,6 @@ export function WalletFinder({ wallets, disabled, bookmarks, bookmarkNames, onBo
     if (!name) { setBookmarkError('Enter a name for this wallet.'); return; }
     setSavingBookmark(true); setBookmarkError('');
     try {
-      const response = await fetch('/api/bookmarks', { method: bookmarks.has(bookmarkAddress) ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: bookmarkAddress, name }) });
-      if (!response.ok) throw new Error((await response.json() as { error?: string }).error || 'Could not save the bookmark.');
-      clearSessionCache('vanta:bookmarks:v1');
       onBookmarked(bookmarkAddress, name);
       setBookmarkAddress(null);
     } catch (e) { setBookmarkError((e as Error).message); }

@@ -8,9 +8,9 @@ Import a Solscan activity CSV to scan its unique wallets, then filter the saved 
 
 ## Accounts and data
 
-Two accounts are configured: `admin` and `guest`. Both can use the protected app and edit its shared data. Passwords are stored as salted scrypt hashes. The signed session cookie is HTTP-only and expires after seven days. Sign-in attempts are rate-limited per IP; changing a password hash invalidates that account's existing sessions.
+Two accounts are configured: `admin` and `guest`. Both can use the protected app and edit shared scans and wallet profiles. Passwords are stored as salted scrypt hashes. The signed session cookie is HTTP-only and expires after seven days. Sign-in attempts are rate-limited per IP; changing a password hash invalidates that account's existing sessions.
 
-Scans, wallet metrics, bookmarks, and wallet profiles are stored in PostgreSQL. The previous hosted Site's Cloudflare D1 database is separate. A fresh VPS deployment starts with an empty database unless that data is exported and migrated. Do not commit CSV exports, database dumps, `.env`, or `.vanta-initial-credentials`.
+Scans, wallet metrics, and wallet profiles are stored in PostgreSQL. Bookmarks, names, and custom categories are stored in each browser's `localStorage`, separately for the `admin` and `guest` sign-ins. They do not sync across browsers or devices, and clearing site data removes them. The old shared bookmark API is disabled; existing shared database bookmarks are not copied into any user's browser. The previous hosted Site's Cloudflare D1 database is separate. A fresh VPS deployment starts with an empty database unless that data is exported and migrated. Do not commit CSV exports, database dumps, `.env`, or `.vanta-initial-credentials`.
 
 ## Deploy on a VPS
 

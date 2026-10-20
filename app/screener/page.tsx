@@ -11,6 +11,7 @@ import { LabelControls } from '../wallet-labels';
 import { primaryPool, shortToken } from "@/lib/pool-label";
 import { clearSessionCache, readSessionCache, writeSessionCache } from "@/lib/session-cache";
 import { isSolanaAddress } from "@/lib/solana-address";
+import { useLocalBookmarks } from '@/lib/local-bookmarks';
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
@@ -52,8 +53,9 @@ export default function Home() {
   const [selected, setSelected] = useState("");
   const [historyDay, setHistoryDay] = useState<{ wallet: string; date: string } | null>(null);
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null);
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
-  const [bookmarkNames, setBookmarkNames] = useState<Record<string, string>>({});
+  const { rows: bookmarkRows, error: bookmarkStorageError, add: addBookmark, remove: removeBookmark } = useLocalBookmarks();
+  const bookmarks = useMemo(() => new Set(bookmarkRows.map(row => row.address)), [bookmarkRows]);
+  const bookmarkNames = useMemo(() => Object.fromEntries(bookmarkRows.map(row => [row.address, row.name])), [bookmarkRows]);
   const [bookmarkPending, setBookmarkPending] = useState<Set<string>>(new Set());
   const [bookmarkAddress, setBookmarkAddress] = useState<string | null>(null);
   const [bookmarkName, setBookmarkName] = useState("");
@@ -85,8 +87,6 @@ export default function Home() {
     fetch("/api/scans").then(async r => { if (!r.ok) throw new Error("Could not load the saved scan."); return r.json() as Promise<SavedScan>; }).then(data => {
       if (!importStarted.current) { applyScan(data); writeSessionCache(scanCacheKey, data); }
     }).catch(e => { if (active && !recentScan?.scan) { setProblem(e.message); setStatus("Saved scan unavailable."); } });
-    fetch("/api/bookmarks").then(async r => { if (!r.ok) throw new Error("Could not load bookmarks."); return r.json() as Promise<{ address: string; name: string }[]>; })
-      .then(data => { setBookmarks(new Set(data.map(r => r.address))); setBookmarkNames(Object.fromEntries(data.map(r => [r.address, r.name]))); }).catch(e => setProblem(e.message));
     return () => { active = false; };
   }, []);
 
@@ -252,11 +252,7 @@ export default function Home() {
     }
     setBookmarkPending(prev => new Set(prev).add(address));
     try {
-      const response = await fetch("/api/bookmarks", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address }) });
-      if (!response.ok) throw new Error("Could not update the bookmark.");
-      clearSessionCache("vanta:bookmarks:v1");
-      setBookmarks(prev => { const next = new Set(prev); next.delete(address); return next; });
-      setBookmarkNames(prev => { const next = { ...prev }; delete next[address]; return next; });
+      removeBookmark(address);
     } catch (e) { setProblem((e as Error).message); }
     finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
   }
@@ -268,12 +264,7 @@ export default function Home() {
     const address = bookmarkAddress;
     setBookmarkPending(prev => new Set(prev).add(address)); setBookmarkError("");
     try {
-      const response = await fetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address, name }) });
-      const data = await response.json() as { address?: string; name?: string; error?: string };
-      if (!response.ok || !data.address) throw new Error(data.error || "Could not save the bookmark.");
-      clearSessionCache("vanta:bookmarks:v1");
-      setBookmarks(prev => new Set(prev).add(address));
-      setBookmarkNames(prev => ({ ...prev, [address]: data.name ?? name }));
+      addBookmark(address, name);
       closeBookmarkDialog();
     } catch (e) { setBookmarkError((e as Error).message); }
     finally { setBookmarkPending(prev => { const next = new Set(prev); next.delete(address); return next; }); }
@@ -306,7 +297,7 @@ export default function Home() {
         <Button disabled={!wallets.length || busy || resolvingPool} onClick={() => { void scan(); }}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : "Refresh scan"}</Button></div>
     </div>
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
-    {problem && <div className="error-banner" role="alert">{problem}{!saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
+    {(problem || bookmarkStorageError) && <div className="error-banner" role="alert">{problem || bookmarkStorageError}{problem && !saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
       <LabelControls addresses={shown.map(r => r.address)} disabled={busy} />
       <div className="overview-label" ref={overviewRef} tabIndex={-1}><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
@@ -322,7 +313,7 @@ export default function Home() {
         <div className="profit-summary"><span>Monthly profit</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong></div><p className="panel-note">Click a table row to inspect a wallet. Hover for a quick calendar preview.</p>
       </div><div><Calendar row={focusMonth} month={month} currency={currency} onMonthChange={next => { setMonth(next); setHover(null); }} onDateClick={date => { if (focus) setHistoryDay({ wallet: focus.address, date }); }} />{monthLoading && <p className="calendar-fetch-status" role="status">Loading {monthName(month)} for this wallet…</p>}{monthError && <p className="calendar-fetch-status negative" role="alert">{monthError} <button type="button" onClick={() => setMonthErrors(previous => { const next = { ...previous }; delete next[cacheKey]; return next; })}>Retry</button></p>}</div></section>
       {historyDay && <DayPositions key={historyDay.wallet + historyDay.date} wallet={historyDay.wallet} date={historyDay.date} currency={currency} close={() => setHistoryDay(null)} />}
-      <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} bookmarks={bookmarks} bookmarkNames={bookmarkNames} onBookmarked={(address, name) => { setBookmarks(prev => new Set(prev).add(address)); setBookmarkNames(prev => ({ ...prev, [address]: name })); }} onSelectWallet={address => { setSelected(address); setHover(null); requestAnimationFrame(() => { overviewRef.current?.focus({ preventScroll: true }); overviewRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }); }} />
+      <WalletFinder key={source + wallets.map(w => w.address).join(',')} wallets={wallets.map(w => w.address)} disabled={busy} bookmarks={bookmarks} bookmarkNames={bookmarkNames} onBookmarked={(address, name) => { addBookmark(address, name); }} onSelectWallet={address => { setSelected(address); setHover(null); requestAnimationFrame(() => { overviewRef.current?.focus({ preventScroll: true }); overviewRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }); }} />
       <section className="wallet-section"><div className="panel-heading"><h2>Wallets <span className="count-badge">{shown.length}</span>{scanMonth && <small className="table-scan-month">{monthName(scanMonth)} scan</small>}</h2><div className="toolbar-actions">{failed > 0 && <span className="negative">{failed} unavailable</span>}<Button variant="outline" disabled={!shown.length} onClick={download}><Download size={14} />Export</Button></div></div>
         <div className="filters"><SlidersHorizontal size={17} className="filter-icon" />{filterLabels.map(([key, label]) => <label key={key}>{label}<div className="filter-input"><Input type="number" step="any" min={key === "minProfit" || key === "maxProfit" ? undefined : 0} placeholder="Any" value={filters[key]} onChange={e => setFilters({ ...filters, [key]: e.target.value })} /><span>{key === "days" ? "Days" : currency}</span></div></label>)}<button className="icon-button reset-filters" title="Reset filters" aria-label="Reset filters" onClick={() => setFilters(emptyFilters)}><RotateCcw size={16} /></button></div>
         <div className="wallet-table-scroll"><table className="wallet-table"><thead><tr>{headings.map(([label, key]) => <th key={key} aria-sort={sort === key ? direction === 1 ? "ascending" : "descending" : "none"}><button onClick={() => { setSort(key); setDirection(sort === key ? -direction : key === "address" ? 1 : -1); }}>{label}{sort === key ? direction === 1 ? <ArrowUp size={13} /> : <ArrowDown size={13} /> : <ArrowUpDown size={12} />}</button></th>)}</tr></thead><tbody>{shown.map(row => <tr key={row.address} className={focus?.address === row.address ? "selected-row" : ""} tabIndex={0} onFocus={() => setSelected(row.address)} onClick={() => setSelected(row.address)} onKeyDown={e => { if (e.key === "Enter") setSelected(row.address); }} onMouseEnter={e => setHover({ row, x: e.clientX, y: e.clientY })} onMouseLeave={() => setHover(null)}>

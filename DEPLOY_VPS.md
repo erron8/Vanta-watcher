@@ -114,7 +114,7 @@ sudo docker compose logs --tail=100 app caddy migrate
 
 Open `https://vanta.yourdomain.com/`. The homepage should open without a password. Open `/screener` or `/bookmarks`; you should be sent to the sign-in page. If HTTPS is not ready, check that DNS points to this VPS, TCP 80/443 are reachable, and Caddy's logs show certificate activity.
 
-**Existing data:** this VPS starts with an empty PostgreSQL database. Scans and bookmarks saved in the older hosted Site's Cloudflare D1 database do not move automatically. Keep the old Site until its data has been exported or you are happy to start fresh.
+**Existing data:** this VPS starts with an empty PostgreSQL database. Scans saved in the older hosted Site's Cloudflare D1 database do not move automatically. Bookmarks are now saved only in each browser's local storage and are not migrated from the older shared database. Keep the old Site until its data has been exported or you are happy to start fresh.
 
 ## Updates and backups
 
