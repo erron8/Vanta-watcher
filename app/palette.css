@@ -116,7 +116,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .icon-button { color: #766858; }
 .icon-button:hover { background: #dfcdb9; color: #22333b; }
 .icon-button.bookmarked { color: #5e503f; }
-.table-footer, .bookmark-item time, .empty-table span, .history-status, .finder-fields label, .tolerance-options, .finder-actions > span, .position-table details, .bookmark-rename small, .label-controls { color: #685a4b; }
+.table-footer, .bookmark-item time, .empty-table span, .history-status, .finder-fields label, .tolerance-options, .finder-actions > span, .position-table details, .bookmark-rename small { color: #685a4b; }
 
 .candidate-wallet-line { display: flex; align-items: center; gap: 6px; max-width: 420px; }
 .candidate-wallet-line .history-wallet { min-width: 0; }

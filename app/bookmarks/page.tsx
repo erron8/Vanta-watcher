@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { Navigation, WalletAddress } from "../screener-ui";
-import { LabelControls } from '../wallet-labels';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pencil, Plus } from 'lucide-react';
@@ -57,7 +56,6 @@ export default function Bookmarks() {
     <form className="bookmark-add" onSubmit={e => { e.preventDefault(); void addWallet(); }}><label htmlFor="new-wallet-address">Add a Solana wallet</label><div><Input id="new-wallet-address" name="walletAddress" value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="Paste a Solana wallet address" autoComplete="off" spellCheck={false} disabled={adding || loading} /><Button type="submit" disabled={adding || loading || !newAddress.trim()}><Plus size={15} />{adding ? 'Adding…' : 'Add wallet'}</Button></div></form>
     {(error || storageError) && <p className="error-banner" role="alert">{error || storageError}</p>}
     <p className="bookmark-notice" role="status">{notice}</p>
-    <LabelControls addresses={rows.map(r => r.address)} />
     <div className="bookmark-list">{rows.map(row => <div className="bookmark-item" key={row.address}>
       <div className="bookmark-wallet"><WalletAddress address={row.address} name={row.name} marked pending={pending !== null} onBookmark={() => remove(row.address)} onError={setError} labels={<BookmarkCategoryPicker address={row.address} categories={row.categories || emptyCategories} onSave={categories => saveCategories(row.address, categories)} />} />
       {editing === row.address && <form className="bookmark-rename" onSubmit={e => { e.preventDefault(); void rename(row.address); }} onKeyDown={e => { if (e.key === 'Escape' && !pending) setEditing(null); }}><label htmlFor={'name-' + row.address}>Wallet name <small>Optional · up to 80 characters</small></label><div><Input id={'name-' + row.address} autoFocus maxLength={80} value={draft} disabled={pending !== null} placeholder="e.g. SOL trader" onChange={e => setDraft(e.target.value)} /><Button type="submit" disabled={pending !== null}>{pending === row.address ? 'Saving…' : 'Save'}</Button><Button type="button" variant="outline" disabled={pending !== null} onClick={() => setEditing(null)}>Cancel</Button></div></form>}</div>

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Navigation, WalletAddress, amount, dayPnl, largestLoss, monthPnl, number, tone, monthName, type Currency, type Row, type Day } from "../screener-ui";
 import { DayPositions, WalletFinder } from "../position-history";
 import { reserveRequest } from "@/lib/history";
-import { LabelControls } from '../wallet-labels';
 import { primaryPool, shortToken } from "@/lib/pool-label";
 import { clearSessionCache, readSessionCache, writeSessionCache } from "@/lib/session-cache";
 import { isSolanaAddress } from "@/lib/solana-address";
@@ -299,7 +298,6 @@ export default function Home() {
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
     {(problem || bookmarkStorageError) && <div className="error-banner" role="alert">{problem || bookmarkStorageError}{problem && !saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
-      <LabelControls addresses={shown.map(r => r.address)} disabled={busy} />
       <div className="overview-label" ref={overviewRef} tabIndex={-1}><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
       <section className="metrics-strip" aria-label="Selected wallet metrics">
         <div className="metric-card"><span>Monthly P&L</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong><small>Calendar month · {currency}</small></div>
