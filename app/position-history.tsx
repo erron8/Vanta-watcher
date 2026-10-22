@@ -44,14 +44,22 @@ export function WalletFinder({ wallets, disabled, bookmarks, bookmarkNames, onBo
     setBusy(true); setPositions([]); setError(''); setStatus('Loading position history…');
     const target = { tvl: Number(fields.tvl), tolerance: Number(fields.tolerance), pnl: fields.pnl === '' ? undefined : Number(fields.pnl), pnlTolerance: Number(fields.pnlTolerance), seconds: fields.held ? parts[0] * 3600 + parts[1] * 60 + parts[2] : undefined, secondsTolerance: Number(fields.secondsTolerance) };
     const queue = [...new Set(wallets)], found: Match[] = []; let done = 0, failed = 0;
+    let publishTimer: ReturnType<typeof setTimeout> | undefined;
+    const publishMatches = () => {
+      publishTimer = undefined;
+      setPositions([...found].sort((a, b) => Math.abs(Number(a.allTimeDeposits.total.usd) - target.tvl) - Math.abs(Number(b.allTimeDeposits.total.usd) - target.tvl)));
+    };
+    const scheduleMatches = () => { if (publishTimer === undefined) publishTimer = setTimeout(publishMatches, 150); };
     await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
       while (queue.length && !controller.signal.aborted) {
         const wallet = queue.shift()!;
-        try { await history(wallet, controller.signal, p => { if (matches(p, target)) { found.push(p); setPositions([...found].sort((a, b) => Math.abs(Number(a.allTimeDeposits.total.usd) - target.tvl) - Math.abs(Number(b.allTimeDeposits.total.usd) - target.tvl))); } }, { date: fields.date, pair: fields.pair.trim() }); }
+        try { await history(wallet, controller.signal, p => { if (matches(p, target)) { found.push(p); scheduleMatches(); } }, { date: fields.date, pair: fields.pair.trim() }); }
         catch { if (!controller.signal.aborted) failed++; }
         if (!controller.signal.aborted) setStatus(`${++done} / ${wallets.length} wallets checked · ${found.length} matching positions`);
       }
     }));
+    if (publishTimer !== undefined) clearTimeout(publishTimer);
+    publishMatches();
     setStatus(`${controller.signal.aborted ? 'Stopped · partial results' : 'Search complete'} · ${done} / ${wallets.length} wallets checked · ${new Set(found.map(p => p.wallet)).size} candidate wallets · ${found.length} positions`);
     if (failed) setError(`${failed} wallets could not be fully checked. Search again to retry; successful pages are cached for 5 minutes.`);
     setBusy(false);
