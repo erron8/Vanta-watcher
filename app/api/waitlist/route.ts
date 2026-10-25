@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const ip = (request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown').slice(0, 100);
   const ipKey = createHmac('sha256', secret).update(ip).digest('hex');
   try {
-    if (!await consumeRateLimit(`waitlist-ip:${ipKey}`, 10, 24 * 3600)) return rateLimited(24 * 3600);
+    if (!await consumeRateLimit(`waitlist-ip:${ipKey}`, 5, 24 * 3600)) return rateLimited(24 * 3600);
   } catch { return serviceUnavailable(); }
 
   let body: unknown;
