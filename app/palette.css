@@ -66,6 +66,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .landing-bottom-inner > a:hover { background: #eae0d5; }
 .landing-footer { background: #e5d5c3; border-color: #cdbba7; }
 .landing-footer .landing-container > span, .landing-footer .landing-container > div { color: #5e503f; }
+.landing-waitlist-trigger { border-color: #cdbba7; background: #f5eee6; color: #685a4b; }
+.landing-waitlist-trigger strong { color: #22333b; }
+.landing-waitlist-trigger:hover { border-color: #8c7257; background: #eadfd1; }
+.landing-waitlist-dialog { border-color: #cdbba7; background: #f5eee6; color: #22333b; }
+.landing-waitlist-dialog::backdrop { background: #0a0908a8; }
+.landing-waitlist-close { background: #e5d5c3; color: #5e503f; }
+.landing-waitlist-kicker { color: #5e503f; }
+.landing-waitlist-dialog p { color: #685a4b; }
+.landing-waitlist-dialog input { border-color: #bfa98f; background: #fff9f2; color: #22333b; }
+.landing-waitlist-dialog input:focus { outline-color: #5e503f; }
+.landing-waitlist-dialog small { color: #897866; }
 
 /* Screener and bookmarks use the same cream, slate, and sand surfaces. */
 .terminal { background: #eae0d5; color: #22333b; }

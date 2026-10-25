@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext client-side Link navigation fails in this deployment. */
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Bookmark, CalendarDays, Check, FileSpreadsheet, Layers3, Search, SlidersHorizontal, Sparkles, TrendingUp } from "lucide-react";
+import { WaitlistForm } from './waitlist-form';
 
 const days = [
   { day: "01", amount: "+$426", tone: "up" },
@@ -32,6 +33,7 @@ export default function LandingPage() {
         <h1 id="landing-title">Find the wallets<br /><span>worth watching.</span></h1>
         <p className="landing-intro">From a CSV to a shortlist. Explore daily P&amp;L, compare wallet performance, and spot the activity that matters to you.</p>
         <div className="landing-hero-actions"><a className="landing-primary" href="/screener">Open wallet screener <span><ArrowRight size={22} /></span></a><a className="landing-secondary" href="#features">See how it works <span><ArrowDownRight size={20} /></span></a></div>
+        <WaitlistForm />
         <div className="landing-product-stage" id="preview">
           <div className="landing-float landing-float-left"><span className="landing-float-icon"><TrendingUp size={17} /></span><div><small>Performance at a glance</small><strong>Know the trend.</strong></div></div>
           <div className="landing-float landing-float-right"><span className="landing-float-icon"><Bookmark size={17} /></span><div><small>Your own shortlist</small><strong>Save what matters.</strong></div></div>

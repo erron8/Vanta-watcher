@@ -10,6 +10,7 @@ This repository is shared with invited collaborators. Access to the running app 
 - Filters wallet results by investment size, active days, daily losses, and monthly profit.
 - Shows daily P&L in USD or SOL and loads position details when requested.
 - Keeps each account's saved scans and analyzed wallet labels separate. Bookmarks stay in that browser's storage for the signed-in account.
+- Lets visitors request access with a Telegram handle; only the admin can view requests and mark them done.
 
 When upgrading an existing installation, the latest previously shared scan and automatic labels are copied to the admin account. Other accounts start with their own empty scan and label history; browser bookmarks are unaffected.
 

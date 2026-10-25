@@ -124,3 +124,13 @@ CREATE TABLE IF NOT EXISTS owner_credentials (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT owner_credentials_username_format CHECK (username ~ '^[a-z][a-z0-9_-]{2,31}$')
 );
+
+CREATE TABLE IF NOT EXISTS waitlist (
+  id uuid PRIMARY KEY,
+  telegram_handle text NOT NULL UNIQUE,
+  done boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT waitlist_telegram_format CHECK (telegram_handle ~ '^@[a-z0-9_]{5,32}$')
+);
+CREATE INDEX IF NOT EXISTS idx_waitlist_done_created ON waitlist(done, created_at DESC);
