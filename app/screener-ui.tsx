@@ -34,18 +34,28 @@ export const shiftMonth = (month: string, offset: number) => {
 };
 
 export function Navigation({ active }: { active: "screener" | "bookmarks" | "admin" | "profile" }) {
-  const [identity, setIdentity] = useState<{ username: string; isAdmin: boolean } | null>(null);
+  const [identity, setIdentity] = useState<{ account: string; username: string; isAdmin: boolean } | null>(null);
+  const accountRef = useRef<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let mounted = true;
-    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => response.ok ? await response.json() as { username: string; isAdmin: boolean } : null).then(value => { if (mounted) setIdentity(value); }).catch(() => {});
+    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => response.ok ? await response.json() as { account: string; username: string; isAdmin: boolean } : null).then(value => { if (mounted) { accountRef.current = value?.account ?? null; setIdentity(value); } }).catch(() => {});
     return () => { mounted = false; };
   }, [active]);
   useEffect(() => {
     const changed = (event: StorageEvent) => { if (event.key === 'vanta:auth-change') window.location.reload(); };
+    const checkAccount = () => {
+      void fetch('/api/auth/me', { cache: 'no-store' }).then(async response => {
+        if (response.status === 401) { window.location.reload(); return; }
+        if (!response.ok) return;
+        const current = await response.json() as { account: string };
+        if (accountRef.current && current.account !== accountRef.current) window.location.reload();
+      }).catch(() => {});
+    };
     window.addEventListener('storage', changed);
-    return () => window.removeEventListener('storage', changed);
+    window.addEventListener('focus', checkAccount);
+    return () => { window.removeEventListener('storage', changed); window.removeEventListener('focus', checkAccount); };
   }, []);
   useEffect(() => {
     if (!menuOpen) return;
