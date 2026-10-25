@@ -32,6 +32,8 @@ export default function AdminPage() {
   const [waitlistLoading, setWaitlistLoading] = useState(true);
   const [showDone, setShowDone] = useState(false);
   const [waitlistPending, setWaitlistPending] = useState<string | null>(null);
+  const [waitlistError, setWaitlistError] = useState('');
+  const [waitlistNotice, setWaitlistNotice] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -41,7 +43,7 @@ export default function AdminPage() {
       .finally(() => { if (mounted) setLoading(false); });
     request<{ entries: WaitlistEntry[] }>('/api/admin/waitlist')
       .then(result => { if (mounted) setWaitlist(result.entries); })
-      .catch(cause => { if (mounted) setError((cause as Error).message); })
+      .catch(cause => { if (mounted) setWaitlistError((cause as Error).message); })
       .finally(() => { if (mounted) setWaitlistLoading(false); });
     return () => { mounted = false; };
   }, []);
@@ -99,12 +101,12 @@ export default function AdminPage() {
   }
 
   async function setWaitlistDone(entry: WaitlistEntry, done: boolean) {
-    setWaitlistPending(entry.id); setError(''); setNotice('');
+    setWaitlistPending(entry.id); setWaitlistError(''); setWaitlistNotice('');
     try {
       const result = await request<{ entry: WaitlistEntry }>('/api/admin/waitlist', { method: 'PATCH', body: JSON.stringify({ id: entry.id, done }) });
       setWaitlist(current => current.map(row => row.id === entry.id ? result.entry : row));
-      setNotice(done ? `${entry.telegramHandle} marked done.` : `${entry.telegramHandle} moved back to pending.`);
-    } catch (cause) { setError((cause as Error).message); }
+      setWaitlistNotice(done ? `${entry.telegramHandle} marked done.` : `${entry.telegramHandle} moved back to pending.`);
+    } catch (cause) { setWaitlistError((cause as Error).message); }
     finally { setWaitlistPending(null); }
   }
 
@@ -115,17 +117,19 @@ export default function AdminPage() {
       <label htmlFor="create-password">Password <small>Optional · at least 12 characters</small></label><input id="create-password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={256} placeholder="Generate one for me" disabled={pending !== null} />
       <button className="admin-primary" type="submit" disabled={pending !== null}><Plus size={16} />{pending === 'create' ? 'Creating…' : 'Create user'}</button>
     </form>{credentials && <div className="admin-credentials" aria-label="New account credentials"><div><strong>Save these credentials now</strong><p>The password is shown here only until you leave this page.</p></div><div className="admin-credential-line"><span>{credentials.username}</span><code>{credentials.password}</code><button type="button" onClick={() => void copyPassword()} aria-label="Copy password">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? 'Copied' : 'Copy'}</button></div></div>}<p className="admin-system-note">Change your own admin sign-in from the profile icon. The <strong>guest</strong> account remains configured separately.</p></section>
-    <section className="admin-users" aria-labelledby="admin-users-title"><div className="admin-users-top"><h2 id="admin-users-title">Managed users</h2><span>{users.length} total</span></div>
+    <div className="admin-side-stack"><section className="admin-users" aria-labelledby="admin-users-title"><div className="admin-users-top"><h2 id="admin-users-title">Managed users</h2><span>{users.length} total</span></div>
       {loading ? <p className="admin-empty">Loading users…</p> : users.length === 0 ? <p className="admin-empty">No friend accounts yet. Create one to give someone access.</p> : <div className="admin-user-list">{users.map(user => <div className="admin-user" key={user.id}>
         <div className="admin-user-main"><div className="admin-user-avatar" aria-hidden="true">{user.username.slice(0, 1).toUpperCase()}</div><div><strong>{user.username}</strong><span>Added {new Date(user.createdAt).toLocaleDateString()}</span></div></div><span className={`admin-status ${user.enabled ? 'enabled' : 'disabled'}`}>{user.enabled ? 'Active' : 'Disabled'}</span>
         <div className="admin-user-actions"><button type="button" disabled={pending !== null} onClick={() => { setEditing(editing === user.id ? null : user.id); setEditName(user.username); setEditPassword(''); setError(''); }}><Pencil size={14} />Edit</button><button type="button" disabled={pending !== null} onClick={() => void toggle(user)}>{user.enabled ? 'Disable' : 'Enable'}</button><button type="button" className="admin-danger" disabled={pending !== null} onClick={() => void remove(user)} title={`Delete ${user.username}`} aria-label={`Delete ${user.username}`}><Trash2 size={15} /></button></div>
         {editing === user.id && <form className="admin-edit" onSubmit={event => { event.preventDefault(); void save(user); }}><label>Username<input value={editName} onChange={event => setEditName(event.target.value)} required minLength={3} maxLength={32} pattern="[A-Za-z][A-Za-z0-9_-]{2,31}" disabled={pending !== null} /></label><label>New password <small>Leave blank to keep it</small><input type="password" value={editPassword} onChange={event => setEditPassword(event.target.value)} minLength={12} maxLength={256} autoComplete="new-password" disabled={pending !== null} /></label><div><button className="admin-primary" type="submit" disabled={pending !== null}>{pending === user.id ? 'Saving…' : 'Save changes'}</button><button type="button" disabled={pending !== null} onClick={() => setEditing(null)}>Cancel</button></div></form>}
-      </div>)}</div>}</section></div>
+      </div>)}</div>}</section>
     <section className="admin-waitlist admin-users" aria-labelledby="admin-waitlist-title">
-      <div className="admin-users-top"><div><h2 id="admin-waitlist-title">Access waitlist</h2><p>Telegram handles submitted from the homepage.</p></div><span>{waitlist.filter(entry => !entry.done).length} pending</span></div>
-      {waitlistLoading ? <p className="admin-empty">Loading waitlist…</p> : waitlist.filter(entry => !entry.done).length === 0 ? <p className="admin-empty">No pending requests.</p> : <div className="admin-waitlist-table-wrap"><table className="admin-waitlist-table"><thead><tr><th>Telegram</th><th>Requested</th><th>Action</th></tr></thead><tbody>{waitlist.filter(entry => !entry.done).map(entry => <tr key={entry.id}><td><a href={`https://t.me/${entry.telegramHandle.slice(1)}`} target="_blank" rel="noopener noreferrer">{entry.telegramHandle}</a></td><td>{new Date(entry.createdAt).toLocaleString()}</td><td><button type="button" disabled={waitlistPending !== null} onClick={() => void setWaitlistDone(entry, true)}><Check size={15} /> {waitlistPending === entry.id ? 'Saving…' : 'Mark done'}</button></td></tr>)}</tbody></table></div>}
-      {waitlist.some(entry => entry.done) && <><button type="button" className="admin-waitlist-toggle" aria-expanded={showDone} onClick={() => setShowDone(value => !value)}>{showDone ? 'Hide' : 'Show'} completed ({waitlist.filter(entry => entry.done).length})</button>{showDone && <div className="admin-waitlist-table-wrap"><table className="admin-waitlist-table"><thead><tr><th>Telegram</th><th>Requested</th><th>Action</th></tr></thead><tbody>{waitlist.filter(entry => entry.done).map(entry => <tr key={entry.id}><td><a href={`https://t.me/${entry.telegramHandle.slice(1)}`} target="_blank" rel="noopener noreferrer">{entry.telegramHandle}</a></td><td>{new Date(entry.createdAt).toLocaleString()}</td><td><button type="button" disabled={waitlistPending !== null} onClick={() => void setWaitlistDone(entry, false)}>{waitlistPending === entry.id ? 'Saving…' : 'Restore'}</button></td></tr>)}</tbody></table></div>}</>}
-    </section>
+      <div className="admin-users-top"><div><h2 id="admin-waitlist-title">Access waitlist</h2><p>Telegram requests from the homepage</p></div><span>{waitlist.filter(entry => !entry.done).length} pending</span></div>
+      {waitlistLoading ? <p className="admin-empty">Loading waitlist…</p> : waitlist.filter(entry => !entry.done).length === 0 ? <p className="admin-empty">No pending requests.</p> : null}
+      {!waitlistLoading && <div className="admin-waitlist-list">{[...waitlist.filter(entry => !entry.done), ...(showDone ? waitlist.filter(entry => entry.done) : [])].map(entry => <div className={`admin-waitlist-row${entry.done ? ' is-done' : ''}`} key={entry.id}><div className="admin-waitlist-person"><a href={`https://t.me/${entry.telegramHandle.slice(1)}`} target="_blank" rel="noopener noreferrer">{entry.telegramHandle}</a><span>Requested {new Date(entry.createdAt).toLocaleString()}</span></div><button type="button" disabled={waitlistPending !== null} onClick={() => void setWaitlistDone(entry, !entry.done)}>{entry.done ? 'Restore' : <><Check size={14} /> Mark done</>}{waitlistPending === entry.id && '…'}</button></div>)}</div>}
+      {waitlist.some(entry => entry.done) && <button type="button" className="admin-waitlist-toggle" aria-expanded={showDone} onClick={() => setShowDone(value => !value)}>{showDone ? 'Hide' : 'Show'} completed ({waitlist.filter(entry => entry.done).length})</button>}
+      {waitlistError && <p className="admin-waitlist-feedback admin-error" role="alert">{waitlistError}</p>}{waitlistNotice && <p className="admin-waitlist-feedback" role="status">{waitlistNotice}</p>}
+    </section></div></div>
     {error && <p className="admin-message admin-error" role="alert">{error}</p>}{notice && <p className="admin-message" role="status">{notice}</p>}
   </div></main>;
 }
