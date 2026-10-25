@@ -197,4 +197,5 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .overview-external-link { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 3px; border-radius: 5px; background: transparent; }
 .overview-external-link:hover { background: #ddcbb8; }
 .overview-external-link img { display: block; width: 22px; height: 22px; object-fit: contain; }
+.overview-external-link .gmgn-icon { transform: translateY(-1px); }
 @media (max-width: 800px) { .overview-label h1 { width: auto; } .overview-wallet { flex: 1 1 100%; order: 2; } .overview-month { order: 1; } }
