@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Download, FileSpreadsheet, Loader2, RotateCcw, Search, SlidersHorizontal, Upload, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -298,7 +299,18 @@ export default function Home() {
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
     {(problem || bookmarkStorageError) && <div className="error-banner" role="alert">{problem || bookmarkStorageError}{problem && !saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
-      <div className="overview-label" ref={overviewRef} tabIndex={-1}><h1>Wallet overview</h1><span>{focus ? focus.address : "Select a wallet to inspect its performance"}</span><span className="overview-month">{monthName(month)}</span></div>
+      <div className="overview-label" ref={overviewRef} tabIndex={-1}>
+        <h1>Wallet overview</h1>
+        <div className="overview-wallet">
+          <span className="overview-address" title={focus?.address}>{focus ? focus.address : "Select a wallet to inspect its performance"}</span>
+          {focus && <nav className="overview-external-links" aria-label="Open selected wallet on other sites">
+            <a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on Fabriq" aria-label={`Open ${focus.address} on Fabriq`}><Image src="/brands/fabriq.svg" alt="" width={22} height={22} /></a>
+            <a href={`https://gmgn.ai/sol/address/${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on GMGN" aria-label={`Open ${focus.address} on GMGN`}><Image src="/brands/gmgn.png" alt="" width={22} height={22} /></a>
+            <a href={`https://solscan.io/account/${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on Solscan" aria-label={`Open ${focus.address} on Solscan`}><Image src="/brands/solscan.png" alt="" width={22} height={22} /></a>
+          </nav>}
+        </div>
+        <span className="overview-month">{monthName(month)}</span>
+      </div>
       <section className="metrics-strip" aria-label="Selected wallet metrics">
         <div className="metric-card"><span>Monthly P&L</span><strong className={tone(monthly)}>{amount(monthly, currency)}</strong><small>Calendar month · {currency}</small></div>
         <div className="metric-card"><span>Profitable days</span><strong>{dayWin === null ? "—" : dayWin.toFixed(1) + "%"}</strong><div className="win-bar"><i style={{ width: (dayWin || 0) + "%" }} /></div><small><b className="positive">{winning} win</b><span> / </span><b className="negative">{losing} loss</b></small></div>

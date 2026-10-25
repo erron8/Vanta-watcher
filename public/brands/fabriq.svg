@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 200 200" role="img" aria-label="Fabriq">
+  <g fill="#fc4e05">
+    <circle cx="126" cy="126" r="12"/><circle cx="163" cy="126" r="11"/><circle cx="200" cy="126" r="10"/><circle cx="237" cy="126" r="8"/><circle cx="274" cy="126" r="9"/>
+    <circle cx="126" cy="163" r="11"/><circle cx="163" cy="163" r="12"/><circle cx="200" cy="163" r="10"/><circle cx="237" cy="163" r="9"/><circle cx="274" cy="163" r="8"/>
+    <circle cx="126" cy="200" r="9"/><circle cx="163" cy="200" r="11"/><circle cx="200" cy="200" r="12"/><circle cx="237" cy="200" r="11"/><circle cx="274" cy="200" r="9"/>
+    <circle cx="126" cy="237" r="8"/><circle cx="163" cy="237" r="9"/><circle cx="200" cy="237" r="11"/><circle cx="237" cy="237" r="12"/><circle cx="274" cy="237" r="10"/>
+    <circle cx="126" cy="274" r="9"/><circle cx="163" cy="274" r="8"/><circle cx="200" cy="274" r="10"/><circle cx="237" cy="274" r="11"/><circle cx="274" cy="274" r="12"/>
+  </g>
+</svg>
