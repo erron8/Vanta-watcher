@@ -43,6 +43,11 @@ export function Navigation({ active }: { active: "screener" | "bookmarks" | "adm
     return () => { mounted = false; };
   }, [active]);
   useEffect(() => {
+    const changed = (event: StorageEvent) => { if (event.key === 'vanta:auth-change') window.location.reload(); };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
+  useEffect(() => {
     if (!menuOpen) return;
     const closeOnOutsideClick = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false); };
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
@@ -51,8 +56,12 @@ export function Navigation({ active }: { active: "screener" | "bookmarks" | "adm
     return () => { document.removeEventListener('pointerdown', closeOnOutsideClick); document.removeEventListener('keydown', closeOnEscape); };
   }, [menuOpen]);
   async function logout() {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); }
-    finally { sessionStorage.clear(); window.location.assign('/'); }
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('Sign out failed. Please retry.');
+      try { localStorage.setItem('vanta:auth-change', String(Date.now())); } catch { /* Cookie revocation already succeeded. */ }
+      sessionStorage.clear(); window.location.assign('/');
+    } catch { window.alert('Sign out failed. Please retry.'); }
   }
   return <header className="app-nav"><a className="brand" href="/"><Layers3 size={25} /><span>Vanta</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/screener" aria-current={active === "screener" ? "page" : undefined} className={active === "screener" ? "nav-active" : ""}>Wallet screener</a><a href="/bookmarks" aria-current={active === "bookmarks" ? "page" : undefined} className={active === "bookmarks" ? "nav-active" : ""}>Bookmarks</a>{(identity?.isAdmin || active === 'admin') && <a href="/admin" aria-current={active === "admin" ? "page" : undefined} className={active === "admin" ? "nav-active" : ""}>Admin</a>}</nav><span className="network-label">Meteora <span> / </span> Solana</span><div className="profile-menu-wrap" ref={menuRef}><button type="button" className="profile-trigger" aria-label="Open profile menu" aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(open => !open)}><UserRound size={19} aria-hidden="true" /></button>{menuOpen && <div className="profile-menu" role="menu"><div className="profile-menu-identity"><span className="profile-menu-avatar"><UserRound size={22} /></span><span><strong>{identity?.username ?? 'Your account'}</strong><small>{identity?.isAdmin ? 'Administrator' : 'Member'}</small></span></div><a role="menuitem" href="/profile" onClick={() => setMenuOpen(false)}><UserRound size={17} />Profile</a><button type="button" role="menuitem" onClick={() => void logout()}><LogOut size={17} />Logout</button></div>}</div></header>;
 }

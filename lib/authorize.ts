@@ -1,6 +1,7 @@
 import { readSessionClaims, sameOrigin, sessionCookie, sessionStamp } from './access';
 import { sessionCredential, userById } from './users';
 import { ownerCredentials, ownerSessionCredential } from './owner';
+import { isSessionRevoked } from './session-revocation';
 
 export type Identity = { account: string; username: string; isAdmin: boolean };
 
@@ -8,6 +9,7 @@ export async function authenticateSession(cookie: string | undefined): Promise<I
   const claims = readSessionClaims(cookie);
   if (!claims) return null;
   try {
+    if (await isSessionRevoked(cookie!)) return null;
     if (claims.account === 'guest') return { account: 'guest', username: 'guest', isAdmin: false };
     if (claims.account === 'admin' || claims.account === 'owner') {
       const owner = await ownerCredentials();

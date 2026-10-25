@@ -1,11 +1,11 @@
 import { SOL_MINT, USDC_MINT, shortToken } from "@/lib/pool-label";
-import { denyAnonymous } from '@/lib/authorize';
+import { denyUpstream } from '@/lib/rate-limit';
 
 const isMint = (value: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 const known = new Map([[SOL_MINT, "SOL"], [USDC_MINT, "USDC"]]);
 
 export async function GET(request: Request) {
-  const denied = await denyAnonymous(request); if (denied) return denied;
+  const denied = await denyUpstream(request); if (denied) return denied;
   const url = new URL(request.url);
   const base = url.searchParams.get("base") || "", quote = url.searchParams.get("quote") || "";
   if (!isMint(base) || !isMint(quote) || base === quote) return Response.json({ error: "Invalid token pair." }, { status: 400 });

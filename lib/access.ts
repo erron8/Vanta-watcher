@@ -1,4 +1,4 @@
-import { createHmac, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 export const sessionCookie = 'vanta_session';
 const sessionLifetime = 7 * 24 * 60 * 60;
@@ -39,7 +39,7 @@ function signedSession(account: SessionAccount, hash: string | undefined, now: n
   const secret = sessionSecret();
   const stamp = sessionStamp(hash);
   if (!secret || !stamp) throw new Error('Authentication is not configured.');
-  const payload = Buffer.from(JSON.stringify({ account, exp: Math.floor(now / 1000) + sessionLifetime, stamp })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ account, exp: Math.floor(now / 1000) + sessionLifetime, stamp, nonce: randomBytes(16).toString('base64url') })).toString('base64url');
   const signature = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${signature}`;
 }

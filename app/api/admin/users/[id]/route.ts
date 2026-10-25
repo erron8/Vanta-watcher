@@ -1,6 +1,6 @@
 import { database } from '@/db/postgres';
 import { denyNonAdmin } from '@/lib/authorize';
-import { passwordDigest, publicUser, userById, validPassword, validUsername, type ManagedUser } from '@/lib/users';
+import { passwordDigest, publicUser, validPassword, validUsername, type ManagedUser } from '@/lib/users';
 
 export const runtime = 'nodejs';
 const privateHeaders = { 'Cache-Control': 'private, no-store' };
@@ -20,16 +20,25 @@ export async function PATCH(request: Request, context: Context) {
   if (body.username !== undefined && (!username || !validUsername(username))) return Response.json({ error: 'Use 3–32 lowercase letters, numbers, underscores, or hyphens. Start with a letter.' }, { status: 400, headers: privateHeaders });
   if (body.password !== undefined && (typeof body.password !== 'string' || !validPassword(body.password))) return Response.json({ error: 'Password must be 12–256 characters.' }, { status: 400, headers: privateHeaders });
   if (body.enabled !== undefined && typeof body.enabled !== 'boolean') return Response.json({ error: 'Invalid account status.' }, { status: 400, headers: privateHeaders });
+  const client = await database().connect().catch(() => null);
+  if (!client) return Response.json({ error: 'Could not connect to user storage.' }, { status: 503, headers: privateHeaders });
   try {
-    const user = await userById(id);
-    if (!user) return Response.json({ error: 'User not found.' }, { status: 404, headers: privateHeaders });
-    const result = await database().query<ManagedUser>('UPDATE app_users SET username = $2, password_hash = $3, enabled = $4, session_version = $5, updated_at = now() WHERE id = $1 RETURNING id, username, password_hash AS "passwordHash", session_version AS "sessionVersion", enabled, created_at AS "createdAt", updated_at AS "updatedAt"', [id, username ?? user.username, typeof body.password === 'string' ? passwordDigest(body.password) : user.passwordHash, body.enabled ?? user.enabled, crypto.randomUUID()]);
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(472911)');
+    const user = (await client.query<ManagedUser>('SELECT id, username, password_hash AS "passwordHash", session_version AS "sessionVersion", enabled, created_at AS "createdAt", updated_at AS "updatedAt" FROM app_users WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!user) { await client.query('ROLLBACK'); return Response.json({ error: 'User not found.' }, { status: 404, headers: privateHeaders }); }
+    if (username && (await client.query('SELECT 1 FROM owner_credentials WHERE id = 1 AND username = $1', [username])).rowCount) {
+      await client.query('ROLLBACK'); return Response.json({ error: 'That username is already taken.' }, { status: 409, headers: privateHeaders });
+    }
+    const result = await client.query<ManagedUser>('UPDATE app_users SET username = $2, password_hash = $3, enabled = $4, session_version = $5, updated_at = now() WHERE id = $1 RETURNING id, username, password_hash AS "passwordHash", session_version AS "sessionVersion", enabled, created_at AS "createdAt", updated_at AS "updatedAt"', [id, username ?? user.username, typeof body.password === 'string' ? passwordDigest(body.password) : user.passwordHash, body.enabled ?? user.enabled, crypto.randomUUID()]);
+    await client.query('COMMIT');
     if (!result.rows[0]) return Response.json({ error: 'User not found.' }, { status: 404, headers: privateHeaders });
     return Response.json({ user: publicUser(result.rows[0]) }, { headers: privateHeaders });
   } catch (cause) {
+    await client.query('ROLLBACK').catch(() => {});
     if ((cause as { code?: string }).code === '23505') return Response.json({ error: 'That username is already taken.' }, { status: 409, headers: privateHeaders });
     return Response.json({ error: 'Could not update user.' }, { status: 503, headers: privateHeaders });
-  }
+  } finally { client.release(); }
 }
 
 export async function DELETE(request: Request, context: Context) {

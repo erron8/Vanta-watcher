@@ -23,7 +23,10 @@ export function WalletLabelsProvider({ children }: { children: React.ReactNode }
       abort.signal.throwIfAborted();
       const profile = classifyPositions(positions);
       const response = await fetch('/api/labels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, profile }), signal: abort.signal });
-      if (!response.ok) throw new Error('Saving labels failed.');
+      if (!response.ok) {
+        const details = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(details.error || 'Saving labels failed.');
+      }
       const saved = await response.json() as WalletProfile;
       setProfiles(prev => ({ ...prev, [address]: saved }));
       setStatus('Label saved.');

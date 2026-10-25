@@ -16,8 +16,7 @@ import { useLocalBookmarks } from '@/lib/local-bookmarks';
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
 type Filters = { invested: string; days: string; loss: string; minProfit: string; maxProfit: string };
 type SavedScan = { scan: { month: string; sourceName: string; walletCount: number; createdAt: string } | null; rows: Row[] };
-const scanCacheKey = "vanta:saved-scan:v1";
-let recentScan: SavedScan | null = null;
+const scanCacheKey = (account: string) => `vanta:saved-scan:v2:${account}`;
 const emptyFilters: Filters = { invested: "", days: "", loss: "", minProfit: "", maxProfit: "" };
 const headings: [string, Sort][] = [["Wallet", "address"], ["Activities", "activities"], ["Avg. invested", "avgInvested"], ["30d P&L", "pnl30d"], ["Active days", "activeDays"], ["Max daily loss", "maxLoss"], ["Monthly profit", "monthlyProfit"]];
 const filterLabels: [keyof Filters, string][] = [["invested", "Min. avg. invested"], ["days", "Min. active days"], ["loss", "Max. daily loss"], ["minProfit", "Min. monthly profit"], ["maxProfit", "Max. monthly profit"]];
@@ -38,14 +37,14 @@ function parseCSV(text: string) {
 }
 
 export default function Home() {
-  const [wallets, setWallets] = useState<{ address: string; activities: number }[]>(() => recentScan?.rows.map(row => ({ address: row.address, activities: row.activities })) || []);
-  const [rows, setRows] = useState<Row[]>(() => recentScan?.rows || []);
-  const [month, setMonth] = useState(() => recentScan?.scan?.month || new Date().toISOString().slice(0, 7));
-  const [scanMonth, setScanMonth] = useState(() => recentScan?.scan?.month || "");
+  const [wallets, setWallets] = useState<{ address: string; activities: number }[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [scanMonth, setScanMonth] = useState("");
   const [monthCache, setMonthCache] = useState<Record<string, Day[]>>({});
   const [monthErrors, setMonthErrors] = useState<Record<string, string>>({});
-  const [source, setSource] = useState(() => recentScan?.scan?.sourceName || "");
-  const [status, setStatus] = useState(() => recentScan?.scan ? `${recentScan.scan.walletCount} wallets · Saved ${new Date(recentScan.scan.createdAt).toLocaleString()}` : "Loading saved scan…");
+  const [source, setSource] = useState("");
+  const [status, setStatus] = useState("Loading saved scan…");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [resolvingPool, setResolvingPool] = useState(false);
@@ -69,24 +68,30 @@ export default function Home() {
   const overviewRef = useRef<HTMLDivElement>(null);
   const scanLock = useRef(false);
   const importStarted = useRef(false);
+  const accountRef = useRef("");
   const bookmarkTrigger = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
     const applyScan = (data: SavedScan) => {
       if (!active || importStarted.current) return;
-      recentScan = data;
       if (data.scan) {
         setRows(data.rows); setMonth(data.scan.month); setScanMonth(data.scan.month); setSource(data.scan.sourceName);
         setWallets(data.rows.map(row => ({ address: row.address, activities: row.activities })));
         setStatus(data.scan.walletCount + " wallets · Saved " + new Date(data.scan.createdAt).toLocaleString());
       } else setStatus("Upload an activity CSV to start.");
     };
-    const cached = readSessionCache<SavedScan>(scanCacheKey);
-    if (cached?.scan) Promise.resolve().then(() => applyScan(cached));
-    fetch("/api/scans").then(async r => { if (!r.ok) throw new Error("Could not load the saved scan."); return r.json() as Promise<SavedScan>; }).then(data => {
-      if (!importStarted.current) { applyScan(data); writeSessionCache(scanCacheKey, data); }
-    }).catch(e => { if (active && !recentScan?.scan) { setProblem(e.message); setStatus("Saved scan unavailable."); } });
+    fetch('/api/auth/me', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('Sign in to load your scan.');
+      const identity = await response.json() as { account: string };
+      if (!identity.account) throw new Error('Could not identify your account.');
+      accountRef.current = identity.account;
+      const cached = readSessionCache<SavedScan>(scanCacheKey(identity.account));
+      if (cached?.scan) applyScan(cached);
+      return fetch('/api/scans');
+    }).then(async r => { if (!r.ok) throw new Error('Could not load the saved scan.'); return r.json() as Promise<SavedScan>; }).then(data => {
+      if (!importStarted.current) { applyScan(data); writeSessionCache(scanCacheKey(accountRef.current), data); }
+    }).catch(e => { if (active && !importStarted.current) { setProblem(e.message); setStatus('Saved scan unavailable.'); } });
     return () => { active = false; };
   }, []);
 
@@ -182,7 +187,8 @@ export default function Home() {
       }
       const importedWallets = [...counts].map(([address, activities]) => ({ address, activities }));
       setWallets(importedWallets);
-      recentScan = null; clearSessionCache(scanCacheKey); setSource(label); setRows([]); setSelected(""); setMonthCache({}); setMonthErrors({}); setScanMonth(""); setHover(null); setProblem(""); setSaved(true);
+      if (accountRef.current) clearSessionCache(scanCacheKey(accountRef.current));
+      setSource(label); setRows([]); setSelected(""); setMonthCache({}); setMonthErrors({}); setScanMonth(""); setHover(null); setProblem(""); setSaved(true);
       setStatus(counts.size + " unique wallets extracted. Starting scan…");
       await scan(importedWallets, month, label);
     } catch (e) { importStarted.current = false; setProblem((e as Error).message); }
@@ -190,11 +196,11 @@ export default function Home() {
   }
 
   async function save(data: Row[], scannedMonth = month, scannedSource = displaySource) {
+    if (!accountRef.current) throw new Error('Sign in to save your scan.');
     const r = await fetch("/api/scans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceName: scannedSource, month: scannedMonth, rows: data.map(row => ({ ...row, maxProfit: null })) }) });
-    if (!r.ok) throw new Error("The scan is downloaded but could not be saved. Use Retry save.");
+    if (!r.ok) throw new Error(r.status === 429 ? 'Daily scan save limit reached. You can export these results and save again after the limit resets.' : "The scan was downloaded but could not be saved. Use Retry save.");
     const result = await r.json() as { scan: NonNullable<SavedScan["scan"]> };
-    recentScan = { scan: result.scan, rows: data };
-    writeSessionCache(scanCacheKey, recentScan);
+    writeSessionCache(scanCacheKey(accountRef.current), { scan: result.scan, rows: data });
     setSaved(true);
   }
 
@@ -297,7 +303,7 @@ export default function Home() {
         <Button disabled={!wallets.length || busy || resolvingPool} onClick={() => { void scan(); }}>{busy ? <Loader2 size={15} className="spin" /> : <Download size={15} />}{busy ? "Scanning…" : "Refresh scan"}</Button></div>
     </div>
     <div className="section-tabs"><span className="tab-current">Overview</span><div className="currency-switch" role="group" aria-label="Display currency"><button type="button" aria-pressed={currency === "USD"} className={currency === "USD" ? "active" : ""} onClick={() => { setCurrency("USD"); setFilters(emptyFilters); }}>USD</button><button type="button" aria-pressed={currency === "SOL"} className={currency === "SOL" ? "active" : ""} onClick={() => { setCurrency("SOL"); setFilters(emptyFilters); }}>SOL</button></div><span className="status-text" role="status">{status}</span></div>
-    {(problem || bookmarkStorageError) && <div className="error-banner" role="alert">{problem || bookmarkStorageError}{problem && !saved && <button onClick={() => { void save(rows).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
+    {(problem || bookmarkStorageError) && <div className="error-banner" role="alert">{problem || bookmarkStorageError}{problem && !saved && <button onClick={() => { void save(rows, scanMonth, source).then(() => { setProblem(""); setStatus("Scan saved."); }).catch(e => setProblem(e.message)); }}>Retry save</button>}</div>}
     <div className="dashboard-content">
       <div className="overview-label" ref={overviewRef} tabIndex={-1}>
         <h1>Wallet overview</h1>

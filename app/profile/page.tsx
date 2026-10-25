@@ -36,6 +36,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/profile', { method: 'PATCH', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, currentPassword, newPassword }) });
       const result = await response.json() as { username?: string; message?: string; error?: string };
       if (!response.ok) throw new Error(result.error || 'Could not save your profile.');
+      try { localStorage.setItem('vanta:auth-change', String(Date.now())); } catch { /* Other sessions still fail server authorization. */ }
       setUsername(result.username!);
       setIdentity(value => value && { ...value, username: result.username! });
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');

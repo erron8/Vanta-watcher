@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { database } from '@/db/postgres';
 import { checkPassword, checkPasswordHash } from './access';
-import { passwordDigest, userByName } from './users';
+import { passwordDigest } from './users';
 
 export type OwnerCredentials = { username: string; passwordHash: string; sessionVersion: string };
 const fields = 'username, password_hash AS "passwordHash", session_version AS "sessionVersion"';
@@ -25,7 +25,7 @@ export async function updateOwnerCredentials(currentPassword: string, username: 
     await client.query('SELECT pg_advisory_xact_lock(472911)');
     const current = (await client.query<OwnerCredentials>(`SELECT ${fields} FROM owner_credentials WHERE id = 1`)).rows[0] ?? null;
     if (!verifyOwnerPassword(current, currentPassword)) throw new Error('Current password is incorrect.');
-    if (username === 'guest' || await userByName(username)) throw new Error('That username is already in use.');
+    if (username === 'guest' || (await client.query('SELECT 1 FROM app_users WHERE username = $1', [username])).rowCount) throw new Error('That username is already in use.');
     const passwordHash = newPassword ? passwordDigest(newPassword) : current?.passwordHash ?? process.env.VANTA_ADMIN_PASSWORD_HASH;
     if (!passwordHash) throw new Error('Admin sign-in is not configured.');
     const result = await client.query<OwnerCredentials>(`INSERT INTO owner_credentials (id, username, password_hash, session_version, updated_at)

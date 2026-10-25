@@ -1,6 +1,6 @@
-import { denyAnonymous } from '@/lib/authorize';
+import { denyUpstream } from '@/lib/rate-limit';
 export async function GET(request: Request) {
-  const denied = await denyAnonymous(request); if (denied) return denied;
+  const denied = await denyUpstream(request); if (denied) return denied;
   const query = new URL(request.url).searchParams;
   const address = query.get("address") || "";
   const month = query.get("month") || "";

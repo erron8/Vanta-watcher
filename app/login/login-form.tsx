@@ -11,6 +11,7 @@ export function LoginForm({ next }: { next: string }) {
       const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: form.get('username'), password: form.get('password'), next }) });
       const data = await response.json() as { error?: string; next?: string };
       if (!response.ok || !data.next) throw new Error(data.error || 'Sign-in failed.');
+      try { localStorage.setItem('vanta:auth-change', String(Date.now())); } catch { /* Navigation still authenticates this tab. */ }
       window.location.assign(data.next);
     } catch (cause) { setError((cause as Error).message); setPending(false); }
   }
