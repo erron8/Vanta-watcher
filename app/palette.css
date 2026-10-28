@@ -214,7 +214,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 /* Token lookup shares the import toolbar without changing the selected wallet. */
 .token-pool-search { position: relative; flex: 1 1 300px; max-width: 500px; min-width: 240px; }
 .token-pool-search .pool-search-field { width: 100%; max-width: none; min-width: 0; }
-.pool-search-results { position: absolute; top: calc(100% + 8px); left: 0; z-index: 80; width: 100%; min-width: min(400px, calc(100vw - 40px)); border: 1px solid #c6ac8f; border-radius: 8px; background: #f9f3eb; box-shadow: 0 12px 30px #22333b26; color: #22333b; overflow: hidden; }
+.pool-search-dialog { position: fixed; inset: 0; margin: auto; width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 48px); padding: 0; border: 1px solid #c6ac8f; border-radius: 12px; background: #f9f3eb; box-shadow: 0 24px 80px #0a090845; color: #22333b; overflow-y: auto; }
+.pool-search-dialog::backdrop { background: #0a0908a6; }
+.pool-popup-search { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid #ded0bf; }
+.pool-popup-search .pool-search-field { flex: 1; height: 42px; }
+.pool-popup-close { display: inline-flex; align-items: center; gap: 5px; padding: 7px; border: 1px solid #ded0bf; border-radius: 5px; background: #eae0d5; color: #5e503f; font-size: 12px; }
+.pool-search-dialog .pool-results-heading { padding: 14px 18px 0; }
+.pool-search-dialog .pool-results-hint { margin: 5px 18px 14px; }
+.pool-search-dialog .pool-results-list a { padding: 16px 18px; }
+.pool-search-dialog .pool-results-list { max-height: min(460px, 55dvh); }
+.pool-search-dialog button:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
+@media (max-width: 480px) { .pool-popup-search { padding: 10px; gap: 6px; } .pool-popup-close span { display: none; } }
+
 .pool-results-heading { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 0; font-size: 14px; }
 .pool-results-hint { margin: 4px 12px 10px; color: #685a4b; font-size: 12px; }
 .pool-results-list { list-style: none; padding: 0; margin: 0; max-height: min(400px, 55vh); overflow-y: auto; overscroll-behavior: contain; }

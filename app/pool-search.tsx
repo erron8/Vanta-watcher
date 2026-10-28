@@ -11,20 +11,43 @@ export function PoolSearch() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    const outside = (event: PointerEvent) => { if (!container.current?.contains(event.target as Node)) setOpen(false); };
-    document.addEventListener('pointerdown', outside);
-    return () => { document.removeEventListener('pointerdown', outside); pending.current?.abort(); };
-  }, []);
+  useEffect(() => () => { pending.current?.abort(); if (timer.current) clearTimeout(timer.current); }, []);
 
-  async function search(page = 1) {
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    if (!open) { element.close(); return; }
+    element.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; if (element.open) element.close(); };
+  }, [open]);
+
+  function changeMint(value: string) {
+    pending.current?.abort();
+    if (timer.current) clearTimeout(timer.current);
+    setMint(value); setResult(null); setError(''); setBusy(false);
+    if (isSolanaAddress(value.trim())) {
+      setOpen(true);
+      setBusy(true);
+      timer.current = setTimeout(() => { void search(1, value); }, 250);
+    }
+  }
+
+  function close() {
+    if (timer.current) clearTimeout(timer.current);
+    pending.current?.abort(); setBusy(false); setOpen(false);
+  }
+
+  async function search(page = 1, value = mint) {
+    if (timer.current) clearTimeout(timer.current);
     pending.current?.abort();
     const controller = new AbortController(); pending.current = controller;
-    const address = mint.trim();
+    const address = value.trim();
     setOpen(true); setError('');
     if (page === 1) setResult(null);
     if (!isSolanaAddress(address)) { setError('Enter a valid Solana token contract address.'); setBusy(false); return; }
@@ -43,15 +66,23 @@ export function PoolSearch() {
     } finally { if (!controller.signal.aborted) setBusy(false); }
   }
 
-  return <div ref={container} className="token-pool-search" onKeyDown={event => { if (event.key === 'Escape') { input.current?.focus(); setOpen(false); } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-    <form className="pool-search-field" onSubmit={event => { event.preventDefault(); void search(); }}>
-      <Search size={17} aria-hidden="true" />
-      <input ref={input} aria-label="Solana token contract address" placeholder="Paste a token contract address" value={mint} maxLength={100} spellCheck={false} autoComplete="off" onFocus={() => { if (result || error || busy) setOpen(true); }} onChange={event => { pending.current?.abort(); setBusy(false); setResult(null); setError(''); setOpen(false); setMint(event.target.value); }} />
-      <button type="submit" disabled={busy} aria-expanded={open} aria-controls="token-pool-results">{busy ? <Loader2 size={14} className="spin" aria-label="Searching" /> : 'Search'}</button>
-    </form>
-    {open && <section id="token-pool-results" className="pool-search-results" aria-label="DLMM pool results" aria-busy={busy}>
-      <div className="pool-results-heading"><strong>DLMM pools{result ? ` · ${result.pools.length}${result.page < result.pages ? ` of ${result.total}` : ''}` : ''}</strong><button type="button" className="icon-button" aria-label="Close pool results" onClick={() => { input.current?.focus(); setOpen(false); }}><X size={16} /></button></div>
+  const searchField = (inPopup: boolean) => <form className="pool-search-field" onSubmit={event => { event.preventDefault(); void search(); }}>
+    <Search size={17} aria-hidden="true" />
+    <input aria-label={inPopup ? 'Search token contract address' : 'Solana token contract address'} placeholder="Paste a token contract address" value={mint} maxLength={100} spellCheck={false} autoComplete="off" onChange={event => changeMint(event.target.value)} />
+    <button type="submit" disabled={busy} aria-haspopup={inPopup ? undefined : 'dialog'}>{busy ? <Loader2 size={14} className="spin" aria-label="Searching" /> : 'Search'}</button>
+  </form>;
+
+  return <div className="token-pool-search">
+    {searchField(false)}
+    <dialog ref={dialog} className="pool-search-dialog" aria-labelledby="pool-search-title" onCancel={event => { event.preventDefault(); close(); }} onClick={event => {
+      if (event.target !== event.currentTarget) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close();
+    }}>
+      <div className="pool-popup-search">{searchField(true)}<button type="button" className="pool-popup-close" aria-label="Close pool search" onClick={close}><span>Esc</span><X size={16} /></button></div>
+      <div className="pool-results-heading"><strong id="pool-search-title">DLMM pools{result ? ` · ${result.pools.length}${result.page < result.pages ? ` of ${result.total}` : ''}` : ''}</strong></div>
       <p className="pool-results-hint">Select a pool to view add-liquidity activity on Solscan.</p>
+      {!result && !busy && !error && <p className="pool-results-message">Paste a token contract address to find its DLMM pools.</p>}
       {error && <p className="pool-results-error" role="alert">{error}</p>}
       {result && result.pools.length === 0 && !busy && <p className="pool-results-message">No DLMM pools found for this token.</p>}
       {!!result?.pools.length && <ul className="pool-results-list">{result.pools.map(pool => <li key={pool.address}><a href={solscanLiquidityUrl(pool.address)} target="_blank" rel="noopener noreferrer" aria-label={`${pool.pair}, bin step ${pool.binStep ?? 'unavailable'}, base fee ${pool.baseFeePct ?? 'unavailable'} percent. Open on Solscan in a new tab.`}>
@@ -60,6 +91,6 @@ export function PoolSearch() {
       {busy && <p className="pool-results-message" role="status">Loading pools…</p>}
       {result && result.page < result.pages && <button type="button" className="pool-results-more" disabled={busy} onClick={() => void search(result.page + 1)}>Load more pools</button>}
       {error && !busy && <button type="button" className="pool-results-more" onClick={() => void search(result ? result.page + 1 : 1)}>Try again</button>}
-    </section>}
+    </dialog>
   </div>;
 }
