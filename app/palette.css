@@ -210,3 +210,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .overview-external-link img { display: block; width: 22px; height: 22px; object-fit: contain; }
 .overview-external-link .gmgn-icon { transform: translateY(-1px); }
 @media (max-width: 800px) { .overview-label h1 { width: auto; } .overview-wallet { flex: 1 1 100%; order: 2; } .overview-month { order: 1; } }
+
+/* Token lookup shares the import toolbar without changing the selected wallet. */
+.token-pool-search { position: relative; flex: 1 1 300px; max-width: 500px; min-width: 240px; }
+.token-pool-search .pool-search-field { width: 100%; max-width: none; min-width: 0; }
+.pool-search-results { position: absolute; top: calc(100% + 8px); left: 0; z-index: 80; width: 100%; min-width: min(400px, calc(100vw - 40px)); border: 1px solid #c6ac8f; border-radius: 8px; background: #f9f3eb; box-shadow: 0 12px 30px #22333b26; color: #22333b; overflow: hidden; }
+.pool-results-heading { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 0; font-size: 14px; }
+.pool-results-hint { margin: 4px 12px 10px; color: #685a4b; font-size: 12px; }
+.pool-results-list { list-style: none; padding: 0; margin: 0; max-height: min(400px, 55vh); overflow-y: auto; overscroll-behavior: contain; }
+.pool-results-list li { border-top: 1px solid #ded0bf; }
+.pool-results-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; color: #22333b; text-decoration: none; }
+.pool-results-list a:hover, .pool-results-list a:focus-visible { background: #eae0d5; }
+.pool-results-list a:focus-visible { outline: 2px solid #5e503f; outline-offset: -3px; }
+.pool-results-list a > div { min-width: 0; }
+.pool-results-list a > svg { flex-shrink: 0; }
+.pool-results-list strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.pool-result-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 3px; font-size: 12px; color: #685a4b; }
+.pool-result-metrics b { font-weight: 600; color: #22333b; }
+.pool-result-address { display: block; margin-top: 4px; font-size: 11px; color: #685a4b; overflow-wrap: anywhere; }
+.pool-results-message, .pool-results-error { margin: 0; padding: 12px; font-size: 13px; }
+.pool-results-error { color: #a23d37; }
+.pool-results-more { display: block; width: 100%; padding: 10px; border: 0; border-top: 1px solid #ded0bf; background: #efe5d8; color: #22333b; font-size: 13px; font-weight: 600; }
+.pool-results-more:hover { background: #e5d5c1; }
+.pool-search-field button:disabled, .pool-results-more:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 1000px) { .token-pool-search { max-width: none; } }
+@media (max-width: 650px) { .token-pool-search { flex-basis: 100%; min-width: 0; } }

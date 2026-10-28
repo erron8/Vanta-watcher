@@ -16,5 +16,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/screener/:path*', '/bookmarks/:path*', '/admin/:path*', '/profile/:path*', '/api/profile/:path*', '/api/admin/:path*', '/api/bookmarks/:path*', '/api/scans/:path*', '/api/labels/:path*', '/api/wallet/:path*', '/api/calendar/:path*', '/api/history/:path*', '/api/pool-label/:path*'],
+  matcher: ['/screener/:path*', '/bookmarks/:path*', '/admin/:path*', '/profile/:path*', '/api/profile/:path*', '/api/admin/:path*', '/api/bookmarks/:path*', '/api/scans/:path*', '/api/labels/:path*', '/api/wallet/:path*', '/api/calendar/:path*', '/api/history/:path*', '/api/pool-label/:path*', '/api/pool-search/:path*'],
 };
