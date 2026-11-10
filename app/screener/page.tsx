@@ -11,6 +11,7 @@ import { reserveRequest } from "@/lib/history";
 import { primaryPool, shortToken } from "@/lib/pool-label";
 import { clearSessionCache, readSessionCache, writeSessionCache } from "@/lib/session-cache";
 import { PoolSearch } from "../pool-search";
+import { OverviewAddress } from "../overview-address";
 import { useLocalBookmarks } from '@/lib/local-bookmarks';
 
 type Sort = "address" | "activities" | "avgInvested" | "pnl30d" | "activeDays" | "maxLoss" | "monthlyProfit";
@@ -295,11 +296,12 @@ export default function Home() {
       <div className="overview-label" ref={overviewRef} tabIndex={-1}>
         <h1>Wallet overview</h1>
         <div className="overview-wallet">
-          <span className="overview-address" title={focus?.address}>{focus ? focus.address : "Select a wallet to inspect its performance"}</span>
+          {focus ? <OverviewAddress key={focus.address} address={focus.address} /> : <span className="overview-address">Select a wallet to inspect its performance</span>}
           {focus && <nav className="overview-external-links" aria-label="Open selected wallet on other sites">
             <a href={`https://fabriq.trade/portfolio-beta?walletAddress=${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on Fabriq" aria-label={`Open ${focus.address} on Fabriq`}><Image src="/brands/fabriq.svg" alt="" width={22} height={22} /></a>
             <a href={`https://gmgn.ai/sol/address/${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on GMGN" aria-label={`Open ${focus.address} on GMGN`}><Image src="/brands/gmgn.png" alt="" width={22} height={22} className="gmgn-icon" /></a>
             <a href={`https://solscan.io/account/${encodeURIComponent(focus.address)}`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on Solscan" aria-label={`Open ${focus.address} on Solscan`}><Image src="/brands/solscan.png" alt="" width={22} height={22} /></a>
+            <a href={`https://app.lpagent.io/portfolio?address=${encodeURIComponent(focus.address)}&chain=SOL`} target="_blank" rel="noopener noreferrer" className="overview-external-link" title="Open wallet on LP Agent" aria-label={`Open ${focus.address} on LP Agent`}><span className="lpagent-icon-crop"><Image src="/brands/lpagent.png" alt="" width={608} height={607} /></span></a>
           </nav>}
         </div>
         <span className="overview-month">{monthName(month)}</span>

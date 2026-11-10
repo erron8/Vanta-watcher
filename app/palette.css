@@ -204,11 +204,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 
 .overview-wallet { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .overview-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #685a4b; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; }
+.overview-copy-wrap { position: relative; display: flex; min-width: 0; }
+.overview-copy { padding: 0; border: 0; background: transparent; text-align: left; user-select: text; line-height: inherit; }
+.overview-copy:hover { color: #22333b; text-decoration: underline; text-underline-offset: 3px; }
+.overview-copy-status { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 10; padding: 5px 8px; border: 1px solid #c6ac8f; border-radius: 5px; background: #f5eee6; color: #22333b; font-size: 12px; width: max-content; max-width: min(300px, 80vw); }
+.overview-copy-status.visible { display: block; }
 .overview-external-links { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
 .overview-external-link { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 3px; border-radius: 5px; background: transparent; }
 .overview-external-link:hover { background: #ddcbb8; }
 .overview-external-link img { display: block; width: 22px; height: 22px; object-fit: contain; }
 .overview-external-link .gmgn-icon { transform: translateY(-1px); }
+/* Crop the supplied logo's outer padding without altering the original artwork. */
+.lpagent-icon-crop { position: relative; display: block; width: 22px; height: 22px; overflow: hidden; border-radius: 50%; }
+.overview-external-link .lpagent-icon-crop img { position: absolute; width: 25.33px; height: 25.29px; max-width: none; left: -1.58px; top: -1.67px; }
 @media (max-width: 800px) { .overview-label h1 { width: auto; } .overview-wallet { flex: 1 1 100%; order: 2; } .overview-month { order: 1; } }
 
 /* Token lookup shares the import toolbar without changing the selected wallet. */
