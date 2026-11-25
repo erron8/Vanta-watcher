@@ -3,9 +3,16 @@ import { isSolanaAddress } from './solana-address.ts';
 export type DlmmPool = { address: string; pair: string; binStep: number | null; baseFeePct: number | null; tvlUsd: number | null; volume24hUsd: number | null; fees24hUsd: number | null };
 export type PoolSearchPage = { pools: DlmmPool[]; page: number; pages: number; total: number };
 
-export function solscanLiquidityUrl(address: string) {
+export function solscanLiquidityUrl(address: string, range?: { min: number; max: number }) {
   if (!isSolanaAddress(address)) throw new Error('Invalid pool address.');
   const query = new URLSearchParams({ activity_type: 'ACTIVITY_TOKEN_ADD_LIQ,ACTIVITY_TOKEN_DEPOSIT_VAULT', page_size: '10' });
+  if (range) {
+    if (!Number.isFinite(range.min) || !Number.isFinite(range.max) || range.min < 0 || range.max < range.min) {
+      throw new Error('Invalid USD range.');
+    }
+    query.append('value', String(range.min));
+    query.append('value', String(range.max));
+  }
   return `https://solscan.io/account/${address}?${query}#activities`;
 }
 

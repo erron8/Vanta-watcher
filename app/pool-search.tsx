@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Loader2, Search, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, Loader2, Search, X } from 'lucide-react';
 import { isSolanaAddress } from '@/lib/solana-address';
-import { solscanLiquidityUrl, type PoolSearchPage } from '@/lib/pool-search';
+import { solscanLiquidityUrl, type DlmmPool, type PoolSearchPage } from '@/lib/pool-search';
 
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function usd(value: number | null) {
@@ -19,11 +19,48 @@ async function fetchPools(address: string, page: number, signal: AbortSignal): P
   return response.json();
 }
 
+function PoolValueFilter({ pool, onClose }: { pool: DlmmPool; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [minimum, setMinimum] = useState('');
+  const [maximum, setMaximum] = useState('');
+
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+
+  return <dialog ref={dialog} className="pool-search-dialog pool-value-dialog" aria-labelledby="pool-value-title"
+    onCancel={event => { event.preventDefault(); onClose(); }}>
+    <h2 id="pool-value-title">Activity value (USD)</h2>
+    <p><strong>{pool.pair}</strong> · {pool.address.slice(0, 4)}…{pool.address.slice(-4)}</p>
+    <form onSubmit={event => {
+      event.preventDefault();
+      const range = minimum && maximum ? { min: Number(minimum), max: Number(maximum) } : undefined;
+      window.open(solscanLiquidityUrl(pool.address, range), '_blank', 'noopener,noreferrer');
+      onClose();
+    }}>
+      <div className="pool-value-fields">
+        <label>Minimum ($)<input type="number" inputMode="decimal" min="0" step="any" placeholder="e.g. 500"
+          value={minimum} required={maximum !== ''} onChange={event => setMinimum(event.target.value)} /></label>
+        <label>Maximum ($)<input type="number" inputMode="decimal" min={Math.max(0, Number(minimum))} step="any" placeholder="e.g. 2000"
+          value={maximum} required={minimum !== ''} onChange={event => setMaximum(event.target.value)} /></label>
+      </div>
+      <small>Leave both blank for all values.</small>
+      <div className="pool-value-actions">
+        <button type="button" className="pool-popup-close" onClick={onClose}>Back</button>
+        <button type="submit">Open in Solscan <ArrowUpRight size={15} aria-hidden="true" /></button>
+      </div>
+    </form>
+  </dialog>;
+}
+
 export function PoolSearch() {
   const [mint, setMint] = useState('');
   const [result, setResult] = useState<PoolSearchPage | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<DlmmPool | null>(null);
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +81,7 @@ export function PoolSearch() {
   const loadedPages = result?.page ?? 0;
   const [refreshFailed, setRefreshFailed] = useState(false);
   useEffect(() => {
-    if (!open || busy || !loadedPages) return;
+    if (!open || selectedPool || busy || !loadedPages) return;
     const controller = new AbortController();
     let refreshing = false;
     async function refresh() {
@@ -74,7 +111,7 @@ export function PoolSearch() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [open, busy, loadedPages, mint]);
+  }, [open, selectedPool, busy, loadedPages, mint]);
 
   function changeMint(value: string) {
     pending.current?.abort();
@@ -130,18 +167,19 @@ export function PoolSearch() {
       {result && refreshFailed && <p className="pool-results-error" role="status">Refresh failed. Showing the last available figures.</p>}
       {error && <p className="pool-results-error" role="alert">{error}</p>}
       {result && result.pools.length === 0 && !busy && <p className="pool-results-message">No DLMM pools found for this token.</p>}
-      {!!result?.pools.length && <ul className="pool-results-list">{result.pools.map(pool => <li key={pool.address}><a href={solscanLiquidityUrl(pool.address)} target="_blank" rel="noopener noreferrer" title="Open add-liquidity activity on Solscan in a new tab">
+      {!!result?.pools.length && <ul className="pool-results-list">{result.pools.map(pool => <li key={pool.address}><button className="pool-result-choice" type="button" aria-haspopup="dialog" onClick={() => setSelectedPool(pool)}>
         <div><strong>{pool.pair}</strong><span className="pool-result-metrics">Bin step <b>{pool.binStep ?? '—'}</b><span aria-hidden="true">·</span>Base fee <b>{pool.baseFeePct === null ? '—' : `${pool.baseFeePct}%`}</b></span><span className="pool-result-address" title={pool.address}>{pool.address}</span></div>
         <dl className="pool-live-stats">
           <div><dt>24h VOL</dt><dd>{usd(pool.volume24hUsd)}</dd></div>
           <div><dt>TVL</dt><dd>{usd(pool.tvlUsd)}</dd></div>
           <div><dt>24h fees</dt><dd>{usd(pool.fees24hUsd)}</dd></div>
         </dl>
-        <ArrowUpRight size={17} aria-hidden="true" />
-      </a></li>)}</ul>}
+        <ChevronRight size={17} aria-hidden="true" />
+      </button></li>)}</ul>}
       {busy && <p className="pool-results-message" role="status">Loading pools…</p>}
       {result && result.page < result.pages && <button type="button" className="pool-results-more" disabled={busy} onClick={() => void search(result.page + 1)}>Load more pools</button>}
       {error && !busy && <button type="button" className="pool-results-more" onClick={() => void search(result ? result.page + 1 : 1)}>Try again</button>}
     </dialog>
+    {selectedPool && <PoolValueFilter pool={selectedPool} onClose={() => setSelectedPool(null)} />}
   </div>;
 }

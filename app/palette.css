@@ -229,7 +229,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .pool-popup-close { display: inline-flex; align-items: center; gap: 5px; padding: 7px; border: 1px solid #ded0bf; border-radius: 5px; background: #eae0d5; color: #5e503f; font-size: 12px; }
 .pool-search-dialog .pool-results-heading { padding: 14px 18px 0; }
 .pool-search-dialog .pool-results-hint { margin: 5px 18px 14px; }
-.pool-search-dialog .pool-results-list a { padding: 16px 18px; }
+.pool-search-dialog .pool-results-list .pool-result-choice { padding: 16px 18px; }
 .pool-search-dialog .pool-results-list { max-height: min(460px, 55dvh); }
 .pool-search-dialog button:focus-visible { outline: 2px solid #22333b; outline-offset: 2px; }
 @media (max-width: 480px) { .pool-popup-search { padding: 10px; gap: 6px; } .pool-popup-close span { display: none; } }
@@ -238,11 +238,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .pool-results-hint { margin: 4px 12px 10px; color: #685a4b; font-size: 12px; }
 .pool-results-list { list-style: none; padding: 0; margin: 0; max-height: min(400px, 55vh); overflow-y: auto; overscroll-behavior: contain; }
 .pool-results-list li { border-top: 1px solid #ded0bf; }
-.pool-results-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; color: #22333b; text-decoration: none; }
-.pool-results-list a:hover, .pool-results-list a:focus-visible { background: #eae0d5; }
-.pool-results-list a:focus-visible { outline: 2px solid #5e503f; outline-offset: -3px; }
-.pool-results-list a > div { min-width: 0; }
-.pool-results-list a > svg { flex-shrink: 0; }
+.pool-results-list .pool-result-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px; border: 0; background: transparent; color: #22333b; font: inherit; text-align: left; cursor: pointer; }
+.pool-results-list .pool-result-choice:hover, .pool-results-list .pool-result-choice:focus-visible { background: #eae0d5; }
+.pool-results-list .pool-result-choice:focus-visible { outline: 2px solid #5e503f; outline-offset: -3px; }
+.pool-results-list .pool-result-choice > div { min-width: 0; }
+.pool-results-list .pool-result-choice > svg { flex-shrink: 0; }
 .pool-results-list strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
 .pool-result-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 3px; font-size: 12px; color: #685a4b; }
 .pool-result-metrics b { font-weight: 600; color: #22333b; }
@@ -260,8 +260,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, tr:focus-visible { o
 .pool-live-stats dt { color: #685a4b; }
 .pool-live-stats dd { margin: 0; font-weight: 650; }
 @media (max-width: 540px) {
-  .pool-results-list a { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .pool-results-list .pool-result-choice { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .pool-live-stats { grid-row: 2; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
   .pool-live-stats div { gap: 4px; }
-  .pool-results-list a > svg { grid-row: 1; grid-column: 2; }
+  .pool-results-list .pool-result-choice > svg { grid-row: 1; grid-column: 2; }
 }
+
+.pool-value-dialog { width: min(380px, calc(100vw - 32px)); padding: 20px; }
+.pool-value-dialog h2 { margin: 0; font-size: 18px; }
+.pool-value-dialog p, .pool-value-dialog small { color: #685a4b; font-size: 12px; }
+.pool-value-dialog p { margin: 4px 0 16px; overflow-wrap: anywhere; }
+.pool-value-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pool-value-fields label { font-size: 13px; font-weight: 600; }
+.pool-value-fields input { width: 100%; margin: 4px 0; padding: 8px; border: 1px solid #bfa98f; border-radius: 5px; background: #fffaf4; color: #22333b; font: inherit; }
+.pool-value-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.pool-value-actions button { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; border-radius: 5px; font-size: 13px; }
+.pool-value-actions button[type="submit"] { border: 0; background: #22333b; color: #f9f3eb; font-weight: 650; }
