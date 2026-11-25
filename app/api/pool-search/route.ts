@@ -12,9 +12,9 @@ export async function GET(request: Request) {
   }
   try {
     const query = new URLSearchParams({ query: mint, page: String(page), page_size: '100' });
-    const response = await fetch(`https://dlmm.datapi.meteora.ag/pools?${query}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 60 } });
+    const response = await fetch(`https://dlmm.datapi.meteora.ag/pools?${query}`, { signal: AbortSignal.timeout(12000), cache: 'no-store' });
     if (!response.ok) return Response.json({ error: response.status === 429 ? 'Meteora is busy. Try again shortly.' : 'Could not load pools. Try again.' }, { status: response.status === 429 ? 429 : 502 });
-    return Response.json(parsePoolSearch(await response.json(), mint, page), { headers: { 'Cache-Control': 'private, max-age=60' } });
+    return Response.json(parsePoolSearch(await response.json(), mint, page), { headers: { 'Cache-Control': 'private, no-store' } });
   } catch {
     return Response.json({ error: 'Pool search is unavailable. Try again.' }, { status: 502 });
   }

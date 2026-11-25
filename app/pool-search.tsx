@@ -5,6 +5,20 @@ import { ArrowUpRight, Loader2, Search, X } from 'lucide-react';
 import { isSolanaAddress } from '@/lib/solana-address';
 import { solscanLiquidityUrl, type PoolSearchPage } from '@/lib/pool-search';
 
+const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function usd(value: number | null) {
+  return value == null ? '—' : dollars.format(value);
+}
+
+async function fetchPools(address: string, page: number, signal: AbortSignal): Promise<PoolSearchPage> {
+  const response = await fetch(`/api/pool-search?${new URLSearchParams({ mint: address, page: String(page) })}`, { signal, cache: 'no-store' });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error || 'Could not load pools. Try again.');
+  }
+  return response.json();
+}
+
 export function PoolSearch() {
   const [mint, setMint] = useState('');
   const [result, setResult] = useState<PoolSearchPage | null>(null);
@@ -27,6 +41,41 @@ export function PoolSearch() {
     return () => { document.body.style.overflow = overflow; if (element.open) element.close(); };
   }, [open]);
 
+  const loadedPages = result?.page ?? 0;
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  useEffect(() => {
+    if (!open || busy || !loadedPages) return;
+    const controller = new AbortController();
+    let refreshing = false;
+    async function refresh() {
+      if (document.hidden || refreshing || controller.signal.aborted) return;
+      refreshing = true;
+      try {
+        let data = await fetchPools(mint.trim(), 1, controller.signal);
+        const pools = new Map(data.pools.map(pool => [pool.address, pool]));
+        for (let page = 2; page <= Math.min(loadedPages, data.pages); page++) {
+          data = await fetchPools(mint.trim(), page, controller.signal);
+          for (const pool of data.pools) pools.set(pool.address, pool);
+        }
+        if (!controller.signal.aborted) {
+          setResult({ ...data, pools: [...pools.values()] });
+          setRefreshFailed(false);
+        }
+      } catch {
+        if (!controller.signal.aborted) setRefreshFailed(true);
+      } finally {
+        refreshing = false;
+      }
+    }
+    const interval = window.setInterval(refresh, 30_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [open, busy, loadedPages, mint]);
+
   function changeMint(value: string) {
     pending.current?.abort();
     if (timer.current) clearTimeout(timer.current);
@@ -48,17 +97,12 @@ export function PoolSearch() {
     pending.current?.abort();
     const controller = new AbortController(); pending.current = controller;
     const address = value.trim();
-    setOpen(true); setError('');
+    setOpen(true); setError(''); setRefreshFailed(false);
     if (page === 1) setResult(null);
     if (!isSolanaAddress(address)) { setError('Enter a valid Solana token contract address.'); setBusy(false); return; }
     setBusy(true);
     try {
-      const response = await fetch(`/api/pool-search?${new URLSearchParams({ mint: address, page: String(page) })}`, { signal: controller.signal });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null) as { error?: string } | null;
-        throw new Error(body?.error || 'Could not load pools. Try again.');
-      }
-      const data = await response.json() as PoolSearchPage;
+      const data = await fetchPools(address, page, controller.signal);
       if (controller.signal.aborted) return;
       setResult(previous => ({ ...data, pools: page === 1 ? data.pools : [...new Map([...(previous?.pools || []), ...data.pools].map(pool => [pool.address, pool])).values()] }));
     } catch (failure) {
@@ -83,10 +127,17 @@ export function PoolSearch() {
       <div className="pool-results-heading"><strong id="pool-search-title">DLMM pools{result ? ` · ${result.pools.length}${result.page < result.pages ? ` of ${result.total}` : ''}` : ''}</strong></div>
       <p className="pool-results-hint">Select a pool to view add-liquidity activity on Solscan.</p>
       {!result && !busy && !error && <p className="pool-results-message">Paste a token contract address to find its DLMM pools.</p>}
+      {result && refreshFailed && <p className="pool-results-error" role="status">Refresh failed. Showing the last available figures.</p>}
       {error && <p className="pool-results-error" role="alert">{error}</p>}
       {result && result.pools.length === 0 && !busy && <p className="pool-results-message">No DLMM pools found for this token.</p>}
-      {!!result?.pools.length && <ul className="pool-results-list">{result.pools.map(pool => <li key={pool.address}><a href={solscanLiquidityUrl(pool.address)} target="_blank" rel="noopener noreferrer" aria-label={`${pool.pair}, bin step ${pool.binStep ?? 'unavailable'}, base fee ${pool.baseFeePct ?? 'unavailable'} percent. Open on Solscan in a new tab.`}>
-        <div><strong>{pool.pair}</strong><span className="pool-result-metrics">Bin step <b>{pool.binStep ?? '—'}</b><span aria-hidden="true">·</span>Base fee <b>{pool.baseFeePct === null ? '—' : `${pool.baseFeePct}%`}</b></span><span className="pool-result-address" title={pool.address}>{pool.address}</span></div><ArrowUpRight size={17} aria-hidden="true" />
+      {!!result?.pools.length && <ul className="pool-results-list">{result.pools.map(pool => <li key={pool.address}><a href={solscanLiquidityUrl(pool.address)} target="_blank" rel="noopener noreferrer" title="Open add-liquidity activity on Solscan in a new tab">
+        <div><strong>{pool.pair}</strong><span className="pool-result-metrics">Bin step <b>{pool.binStep ?? '—'}</b><span aria-hidden="true">·</span>Base fee <b>{pool.baseFeePct === null ? '—' : `${pool.baseFeePct}%`}</b></span><span className="pool-result-address" title={pool.address}>{pool.address}</span></div>
+        <dl className="pool-live-stats">
+          <div><dt>24h VOL</dt><dd>{usd(pool.volume24hUsd)}</dd></div>
+          <div><dt>TVL</dt><dd>{usd(pool.tvlUsd)}</dd></div>
+          <div><dt>24h fees</dt><dd>{usd(pool.fees24hUsd)}</dd></div>
+        </dl>
+        <ArrowUpRight size={17} aria-hidden="true" />
       </a></li>)}</ul>}
       {busy && <p className="pool-results-message" role="status">Loading pools…</p>}
       {result && result.page < result.pages && <button type="button" className="pool-results-more" disabled={busy} onClick={() => void search(result.page + 1)}>Load more pools</button>}
