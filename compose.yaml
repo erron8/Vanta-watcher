@@ -30,6 +30,8 @@ services:
     build: .
     restart: unless-stopped
     environment:
+      VANTA_PUBLIC_ORIGIN: https://${VANTA_DOMAIN:?Set VANTA_DOMAIN in .env}
+      VANTA_TRUST_CADDY: "1"
       DATABASE_URL: postgresql://vanta:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/vanta
       VANTA_SESSION_SECRET: ${VANTA_SESSION_SECRET:?Set VANTA_SESSION_SECRET in .env}
       VANTA_ADMIN_PASSWORD_HASH: ${VANTA_ADMIN_PASSWORD_HASH:?Set VANTA_ADMIN_PASSWORD_HASH in .env}

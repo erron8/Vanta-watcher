@@ -1,3 +1,4 @@
+import { clientIp } from '@/lib/client-ip';
 import { NextResponse } from 'next/server';
 import { checkPassword, createMemberSession, createOwnerSession, createSession, safeDestination, sameOrigin, sessionCookie } from '@/lib/access';
 import { sessionCredential, userByName, verifyUserPassword } from '@/lib/users';
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Enter your username and password.' }, { status: 400 });
   const username = body.username;
   const password = body.password;
-  const ip = (request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown').slice(0, 100);
+  const ip = clientIp(request);
   const secret = process.env.VANTA_SESSION_SECRET;
   if (!secret) return NextResponse.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503 });
   const hash = (value: string) => createHmac('sha256', secret).update(value).digest('hex');

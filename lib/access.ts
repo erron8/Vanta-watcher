@@ -85,9 +85,27 @@ export function readRequestSession(request: Request): SessionAccount | null {
 export function sameOrigin(request: Request) {
   if (request.method === 'GET' || request.method === 'HEAD') return true;
   const origin = request.headers.get('origin');
-  if (!origin) return true;
-  try { return new URL(origin).host === request.headers.get('host'); }
-  catch { return false; }
+  const source = origin ?? request.headers.get('referer');
+  if (!source) return false;
+  try {
+    const url = new URL(source);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return false;
+    if (origin !== null && origin !== url.origin) return false;
+    // Match the host serving this request as well as the deployment's allowed origin.
+    const host = request.headers.get('host')?.toLowerCase();
+    const defaultPort = url.protocol === 'https:' ? '443' : '80';
+    if (host !== url.host && (url.port || host !== `${url.host}:${defaultPort}`)) return false;
+    if (process.env.VANTA_PUBLIC_ORIGIN === url.origin) return true;
+    if (process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+      return url.protocol === new URL(request.url).protocol;
+    }
+    if (process.env.VERCEL === '1') {
+      const domains = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL];
+      if (process.env.VERCEL_ENV === 'production') domains.push(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+      return domains.some(domain => domain && url.origin === `https://${domain}`);
+    }
+    return false;
+  } catch { return false; }
 }
 
 export function safeDestination(value: string | null | undefined) {

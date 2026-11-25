@@ -41,40 +41,14 @@ sudo docker compose version
 
 For another Linux distribution, follow [Docker's installation guide](https://docs.docker.com/engine/install/) instead. Docker's official [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) and [Debian](https://docs.docker.com/engine/install/debian/) guides cover package conflicts and supported versions.
 
-## 3. Give the VPS read access to the private GitHub repo
-
-The repository is currently **private**. If `git clone git@github.com:erron8/Vanta-watcher.git` already works from your VPS, use it and skip the deploy-key setup below. Otherwise, create a read-only deploy key:
+## 3. Clone the public repository
 
 ```sh
-mkdir -p "$HOME/.ssh"
-chmod 700 "$HOME/.ssh"
-ssh-keygen -t ed25519 -f "$HOME/.ssh/vanta_deploy" -N ''
-cat "$HOME/.ssh/vanta_deploy.pub"
-```
-
-Copy the public key shown by `cat`. In GitHub, open **Vanta-watcher → Settings → Deploy keys → Add deploy key**, paste the public key, and leave **Allow write access** unchecked. Keep the private key on the VPS. GitHub's [deploy-key instructions](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) explain this access method.
-
-Create a dedicated SSH alias for this repository:
-
-```sh
-cat >> "$HOME/.ssh/config" <<'EOF_SSH'
-Host github-vanta
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/vanta_deploy
-  IdentitiesOnly yes
-EOF_SSH
-chmod 600 "$HOME/.ssh/config"
-```
-
-Then clone the code:
-
-```sh
-git clone git@github-vanta:erron8/Vanta-watcher.git
+git clone https://github.com/erron8/Vanta-watcher.git
 cd Vanta-watcher
 ```
 
-If your VPS already has normal GitHub SSH access, clone with `git@github.com:erron8/Vanta-watcher.git` instead.
+For a private fork, use a read-only deploy key. [GitHub deploy keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys)
 
 ## 4. Generate private credentials and set your domain
 
@@ -111,6 +85,8 @@ The first build can take several minutes. The stack starts PostgreSQL, applies t
 ```sh
 sudo docker compose logs --tail=100 app caddy migrate
 ```
+
+Compose sets the expected HTTPS origin from `VANTA_DOMAIN`. Login and waitlist limits use the client address Caddy writes from its connection peer. Keep port 3000 private. If you add a CDN ahead of Caddy, configure trusted proxy ranges and client address resolution before enabling that topology.
 
 Open `https://vanta.yourdomain.com/`. The homepage should open without a password. Open `/screener` or `/bookmarks`; you should be sent to the sign-in page. If HTTPS is not ready, check that DNS points to this VPS, TCP 80/443 are reachable, and Caddy's logs show certificate activity.
 

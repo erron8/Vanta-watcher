@@ -1,3 +1,4 @@
+import { clientIp } from '@/lib/client-ip';
 import { createHmac } from 'node:crypto';
 import { database } from '@/db/postgres';
 import { sameOrigin } from '@/lib/access';
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
 
   const secret = process.env.VANTA_SESSION_SECRET;
   if (!secret) return serviceUnavailable();
-  const ip = (request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown').slice(0, 100);
+  const ip = clientIp(request);
   const ipKey = createHmac('sha256', secret).update(ip).digest('hex');
   try {
     if (!await consumeRateLimit(`waitlist-ip:${ipKey}`, 5, 24 * 3600)) return rateLimited(24 * 3600);

@@ -2,7 +2,7 @@
 
 Vanta is a private workspace for researching Solana liquidity-provider wallets. It combines wallet scans, performance calendars, position research, and personal bookmarks in one app.
 
-This repository is shared with invited collaborators. Access to the running app is managed separately; ask the maintainer for an account if you need one.
+The source code and homepage are public. Sign in to use the wallet screener or join the waitlist from the homepage to request access.
 
 ## What it does
 
@@ -22,6 +22,8 @@ Use Node.js 22.13 or newer. Install dependencies with `npm ci`, create a local `
 npm run db:migrate
 npm run dev
 ```
+
+On Vercel, the production domain and the deployment and branch URLs use Vercel’s system environment variables. For an additional custom domain, set `VANTA_PUBLIC_ORIGIN` to its exact HTTPS origin. Local development supports loopback addresses.
 
 Before opening a pull request, run:
 
