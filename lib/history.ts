@@ -1,3 +1,5 @@
+import { HISTORY_PAGE_SIZE, historyUrl } from './history-url.ts';
+
 export type Pool = { poolAddress: string; tokenX: string; tokenY: string; tokenXMint?: string; tokenYMint?: string; binStep: string; baseFee: string; lastClosedAt?: number };
 export type Position = { positionAddress: string; createdAt: number; closedAt: number; lowerBinId?: number; upperBinId?: number; pnlUsd: string; pnlSol?: string; pnlPctChange: string; pnlSolPctChange?: string; allTimeDeposits: { total: { usd: string; sol?: string }; tokenX?: { amount: string }; tokenY?: { amount: string } }; allTimeWithdrawals: { total: { usd: string; sol?: string } }; allTimeFees: { total: { usd: string; sol?: string } } };
 export type Match = Position & { wallet: string; pool: Pool };
@@ -17,23 +19,20 @@ async function get(query: string, signal: AbortSignal): Promise<Page> {
   signal.throwIfAborted();
   const saved = cache.get(query);
   if (saved && Date.now() - saved.at < 300000) return saved.value;
+  const params = new URLSearchParams(query);
+  params.set('page_size', String(HISTORY_PAGE_SIZE));
+  const upstream = historyUrl(params.get('user')!, params.get('pool'), params.get('page') || '1', params.get('page_size'));
+  const proxy = '/api/history?' + params;
   for (let attempt = 0; attempt < 3; attempt++) {
     await reserveRequest(signal);
-    const params = new URLSearchParams(query);
-    const user = params.get('user')!;
-    const pool = params.get('pool');
-    const page = params.get('page') || '1';
-    const upstream = pool
-      ? `https://dlmm.datapi.meteora.ag/positions/${encodeURIComponent(pool)}/pnl?user=${encodeURIComponent(user)}&status=closed&page=${encodeURIComponent(page)}`
-      : `https://dlmm.datapi.meteora.ag/portfolio?user=${encodeURIComponent(user)}&page=${encodeURIComponent(page)}&page_size=50`;
     let r: Response;
     try {
       r = await fetch(upstream, { signal, credentials: 'omit' });
-      if (r.status === 403) r = await fetch('/api/history?' + query, { signal });
+      if (r.status === 403) r = await fetch(proxy, { signal });
     } catch {
       signal.throwIfAborted();
       // Some networks block cross-origin requests; retain the authenticated proxy.
-      r = await fetch('/api/history?' + query, { signal });
+      r = await fetch(proxy, { signal });
     }
     if ((r.status === 429 || r.status >= 500) && attempt < 2) { await sleep(1000 * (attempt + 1)); continue; }
     if (!r.ok) throw new Error(`History unavailable (${r.status})`);
