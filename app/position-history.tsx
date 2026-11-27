@@ -44,23 +44,31 @@ export function WalletFinder({ wallets, disabled, bookmarks, bookmarkNames, onBo
     setBusy(true); setPositions([]); setError(''); setStatus('Loading position history…');
     const target = { tvl: Number(fields.tvl), tolerance: Number(fields.tolerance), pnl: fields.pnl === '' ? undefined : Number(fields.pnl), pnlTolerance: Number(fields.pnlTolerance), seconds: fields.held ? parts[0] * 3600 + parts[1] * 60 + parts[2] : undefined, secondsTolerance: Number(fields.secondsTolerance) };
     const queue = [...new Set(wallets)], found: Match[] = []; let done = 0, failed = 0;
+    const totalWallets = queue.length;
+    const pair = fields.pair.trim();
+    const startedAt = performance.now();
     let publishTimer: ReturnType<typeof setTimeout> | undefined;
     const publishMatches = () => {
       publishTimer = undefined;
       setPositions([...found].sort((a, b) => Math.abs(Number(a.allTimeDeposits.total.usd) - target.tvl) - Math.abs(Number(b.allTimeDeposits.total.usd) - target.tvl)));
     };
     const scheduleMatches = () => { if (publishTimer === undefined) publishTimer = setTimeout(publishMatches, 150); };
-    await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
+    // Pair-filtered searches often need only portfolio pages. All workers share the request limiter.
+    const walletConcurrency = pair ? 6 : 3;
+    await Promise.all(Array.from({ length: Math.min(walletConcurrency, totalWallets) }, async () => {
       while (queue.length && !controller.signal.aborted) {
         const wallet = queue.shift()!;
-        try { await history(wallet, controller.signal, p => { if (matches(p, target)) { found.push(p); scheduleMatches(); } }, { pair: fields.pair.trim() }); }
+        try { await history(wallet, controller.signal, p => { if (matches(p, target)) { found.push(p); scheduleMatches(); } }, { pair }); }
         catch { if (!controller.signal.aborted) failed++; }
-        if (!controller.signal.aborted) setStatus(`${++done} / ${wallets.length} wallets checked · ${found.length} matching positions`);
+        if (!controller.signal.aborted) setStatus(`${++done} / ${totalWallets} wallets checked · ${found.length} matching positions`);
       }
     }));
     if (publishTimer !== undefined) clearTimeout(publishTimer);
     publishMatches();
-    setStatus(`${controller.signal.aborted ? 'Stopped · partial results' : 'Search complete'} · ${done} / ${wallets.length} wallets checked · ${new Set(found.map(p => p.wallet)).size} candidate wallets · ${found.length} positions`);
+    const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+    const outcome = controller.signal.aborted ? 'Stopped · partial results' : failed ? 'Incomplete search' : 'Search complete';
+    const candidates = new Set(found.map(p => p.wallet)).size;
+    setStatus(`${outcome} · ${done - failed} / ${totalWallets} wallets checked · ${candidates} candidate wallet${candidates === 1 ? '' : 's'} · ${found.length} positions · ${elapsed}s`);
     if (failed) setError(`${failed} wallets could not be fully checked. Search again to retry; successful pages are cached for 5 minutes.`);
     setBusy(false);
   }
